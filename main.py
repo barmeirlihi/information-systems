@@ -64,6 +64,16 @@ def guest():
 
     return render_template("guest.html")
 
+@app.route("/gabi-guest", methods=["POST", "GET"])
+def guest():
+    if request.method == "POST":
+        email = request.form.get("email")  # unique value
+        first_name = request.form.get("first_name")
+        last_name = request.form.get("last_name")
+        return redirect("/book_flights.html")
+
+    return render_template("gabi-guest.html")
+
 @app.route("/manager", methods=["POST", "GET"])
 def manager():
     if request.method == "POST":
