@@ -64,7 +64,7 @@ def guest():
 
     return render_template("guest.html")
 
-@app.route("/gabi-guest", methods=["POST", "GET"])
+@app.route("/gabi-guest-2", methods=["POST", "GET"])
 def guest():
     if request.method == "POST":
         email = request.form.get("email")  # unique value
