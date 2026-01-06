@@ -18,7 +18,7 @@ def read_guest(email):
     # שליפה מהדאטה בייס
     result = data.sql_query("""SELECT u.email, u.first_name, u.last_name
                                FROM Users as u
-                               JOIN guests as g ON g.email = u.email
+                               JOIN guests as g ON g.UserEmail = u.email
                                WHERE u.email = %s""", email)
 
     if not result:
@@ -58,9 +58,13 @@ def add_guest(guest):
                             guest.email)
 
     if guest.phone_numbers:
-        phones_list = guest.phone_numbers.split(',')
+        # phone_numbers is already a list
+        if isinstance(guest.phone_numbers, str):
+            phones_list = guest.phone_numbers.split(',')
+        else:
+            phones_list = guest.phone_numbers
         query_phone = "INSERT INTO UserPhones (email, phone_number) VALUES (%s, %s)"
         for phone in phones_list:
-            clean_phone = phone.strip()  # מנקה רווחים מיותרים בצדדים
+            clean_phone = phone.strip() if isinstance(phone, str) else str(phone).strip()  # מנקה רווחים מיותרים בצדדים
             if clean_phone:  # מוודא שלא מכניסים סתם ריק
                 data.sql_insert(query_phone, guest.email, clean_phone)
