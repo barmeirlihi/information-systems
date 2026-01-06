@@ -94,14 +94,18 @@ def guest_page():
 @app.route("/manager", methods=["POST", "GET"])
 def manager():
     if request.method == "POST":
-        manager_id = request.form.get("manager_id")  # unique value
+        manager_id = request.form.get("manager_id")
         password = request.form.get("password")
-        if data.sql_query("""select password from Managers where manager_id = %s""", manager_id) == password:
-            return redirect("/flights_management.html")
+        result = data.sql_query("""SELECT password FROM Managers WHERE manager_id = %s""", manager_id)
+        if result and result[0][0] == password:
+            return redirect("/flights_management")
         else:
             return render_template("manager.html", message='Incorrect Login Details.')
     return render_template("manager.html")
 
+@app.route("/flights_management")
+def flights_management():
+    return render_template("flights_management.html")
 
 
 if __name__ == "__main__":
