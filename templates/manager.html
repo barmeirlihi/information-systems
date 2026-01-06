@@ -2,9 +2,52 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff Access - FlyTau</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body>
+<body class="manager-mode centered-page">
+
+    <div class="card card-manager">
+
+        <div style="text-align: center; margin-bottom: 2.5rem;">
+            <div class="icon-circle" style="background-color: #f1f5f9; box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);">🛡️</div>
+            <h2 style="font-weight: 900; font-size: 1.8rem; letter-spacing: -1px; text-transform: uppercase;">Staff Access</h2>
+            <p style="font-size: 0.8rem; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; color: #94a3b8;">
+                Flight Management Portal
+            </p>
+        </div>
+
+        {% if message %}
+            <div class="error-msg" style="border-left: 4px solid #ef4444; text-align: left; font-weight: bold;">
+                {{ message }}
+            </div>
+        {% endif %}
+
+        <form action="/manager" method="POST">
+
+            <div class="form-group">
+                <label class="label-micro">Manager ID</label>
+                <input type="text" name="manager_id" class="input-manager" placeholder="e.g. M101" required>
+            </div>
+
+            <div class="form-group">
+                <label class="label-micro">Access Password</label>
+                <input type="password" name="password" class="input-manager" placeholder="••••••••" required>
+            </div>
+
+            <button type="submit" class="btn btn-manager">
+                Authenticate Staff
+            </button>
+        </form>
+
+        <div style="text-align: center; margin-top: 2.5rem;">
+            <a href="/" style="font-size: 0.75rem; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; color: #94a3b8; text-decoration: none;">
+                &larr; Return to Public Site
+            </a>
+        </div>
+
+    </div>
 
 </body>
 </html>
