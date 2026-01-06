@@ -33,7 +33,6 @@ def login():
     return render_template("login.html")
 
 @app.route("/sign_up", methods=["POST", "GET"])
-@app.route("/sign_up", methods=["POST", "GET"])
 def sign_up():
     if request.method == "POST":
         # קליטת נתונים
@@ -47,7 +46,7 @@ def sign_up():
         # קליטת מחרוזת הטלפונים (למשל: "050-123, 052-456")
         phones_string = request.form.get("phone_numbers")
 
-        new_user = User(email, password, first_name, last_name, birth_date, passport_number, phones_string)
+        new_user = User(email, password, first_name, last_name, phones_string, None, birth_date, passport_number)
         try:
             add_user(new_user)
             return redirect("/book_flights")
