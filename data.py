@@ -32,3 +32,6 @@ def sql_query(query,*arg):
 def sql_insert(query,*arg):
     with db_cur() as mycursor:
         mycursor.execute(query, arg)
+
+if __name__ == "__main__":
+    pass

@@ -1,0 +1,373 @@
+/* static/style.css */
+
+/* --- איפוסים וכללי (Global) --- */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+body {
+    background-color: white;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    /* ביטלתי את ה-Padding הכללי כדי שהתמונה תגיע לקצוות */
+    padding: 0;
+}
+
+/* --- מחלקות עזר לטפסים (Login/Guest) --- */
+/* נוסיף את המחלקה הזו ל-body של דפי ההתחברות כדי שיהיו במרכז */
+.centered-page {
+    background-color: #f8fafc;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+}
+
+/* --- רכיבים (Components) --- */
+
+/* כרטיס בסיסי (משמש בטפסים ובדף הבית) */
+.card {
+    background-color: white;
+    width: 100%;
+    border-radius: 1.5rem;
+    padding: 2.5rem;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    transition: transform 0.2s, box-shadow 0.2s;
+    height: 100%; /* חשוב לגריד */
+    display: flex;
+    flex-direction: column;
+}
+
+/* אפקט ריחוף לכרטיסים לחיצים */
+.card-hover:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+/* שדות טופס */
+.form-group { margin-bottom: 1.25rem; }
+
+label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 0.5rem;
+}
+
+input {
+    width: 100%;
+    background-color: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.75rem;
+    padding: 0.75rem 1rem;
+    outline: none;
+    font-size: 1rem;
+}
+
+input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+/* --- Hero Section (החלק העליון בדף הבית) --- */
+.hero {
+    position: relative;
+    height: 70vh;
+    background-image: url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=2000');
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: white;
+}
+
+.hero-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(15, 23, 42, 0.6); /* Slate-900 with opacity */
+}
+
+.hero-content {
+    position: relative;
+    z-index: 10;
+    max-width: 800px;
+    padding: 20px;
+}
+
+.hero-title {
+    font-size: 3.5rem;
+    font-weight: 900;
+    line-height: 1.1;
+    margin-bottom: 1.5rem;
+}
+
+.hero-title span {
+    color: #60a5fa; /* תכלת */
+    font-style: italic;
+}
+
+.hero-subtitle {
+    font-size: 1.25rem;
+    color: #cbd5e1;
+    margin-bottom: 2.5rem;
+}
+
+.welcome-back-text {
+    margin-top: 1rem;
+    color: #94a3b8;
+    font-weight: bold;
+    letter-spacing: 2px;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+}
+
+/* --- Grid Section (כרטיסי בחירה) --- */
+.features-section {
+    padding: 4rem 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.section-title {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+.section-subtitle {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-weight: bold;
+    color: #64748b;
+    margin-top: 0.5rem;
+}
+
+.cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+}
+
+.card-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+/* --- כפתורים (Buttons) --- */
+.btn {
+    display: inline-block;
+    padding: 1rem 2rem;
+    border-radius: 0.75rem;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    border: none;
+    text-align: center;
+    transition: all 0.2s;
+}
+
+.btn-primary { background-color: #2563eb; color: white; width: 100%; }
+.btn-primary:hover { background-color: #1d4ed8; }
+
+.btn-hero {
+    background-color: white;
+    color: #0f172a;
+    font-size: 1.2rem;
+    border-radius: 1rem;
+    padding: 1rem 3rem;
+}
+.btn-hero:hover { background-color: #f8fafc; }
+
+.btn-outline {
+    background-color: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+}
+.btn-outline:hover { background-color: white; color: #0f172a; }
+
+.btn-dark { background-color: #0f172a; color: white; }
+.btn-dark:hover { background-color: black; }
+
+/* --- עיצובים ייחודיים לכרטיסים (צבעים) --- */
+.icon-circle {
+    width: 4rem; height: 4rem;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 1rem;
+    font-size: 1.8rem;
+}
+
+/* Member Colors */
+.theme-blue .icon-circle { background-color: #eff6ff; color: #2563eb; }
+.theme-blue .link-text { color: #2563eb; font-weight: bold; margin-top: auto; }
+
+/* New User Colors */
+.theme-green .icon-circle { background-color: #ecfdf5; color: #10b981; }
+.theme-green .link-text { color: #10b981; font-weight: bold; margin-top: auto; }
+
+/* Guest Colors */
+.theme-slate .icon-circle { background-color: #f1f5f9; color: #475569; }
+.theme-slate .link-text { color: #0f172a; font-weight: bold; margin-top: auto; }
+
+.manager-section {
+    text-align: center;
+    margin-top: 4rem;
+    padding-top: 2rem;
+    border-top: 1px solid #e2e8f0;
+}
+
+/* --- תוספות עבור דף ההרשמה (Grid & Colors) --- */
+
+/* כרטיס רחב יותר להרשמה */
+.card-wide {
+    max-width: 42rem; /* רחב יותר מה-28rem הרגיל */
+}
+
+/* מערכת הגריד (2 עמודות) */
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+}
+
+/* במסכים בינוניים ומעלה - לפצל ל-2 עמודות */
+@media (min-width: 768px) {
+    .form-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    /* אלמנטים שצריכים לתפוס את כל רוחב השורה (כמו אימייל) */
+    .col-span-2 {
+        grid-column: span 2;
+    }
+}
+
+.btn-success {
+    background-color: #059669;
+    color: white;
+    box-shadow: 0 4px 6px -1px rgba(5, 150, 105, 0.2);
+}
+
+.btn-success:hover {
+    background-color: #047857;
+}
+
+.theme-emerald .icon-circle {
+    background-color: #ecfdf5;
+    color: #059669;
+}
+
+/* --- עיצוב מיוחד למנהלים (Manager Portal) --- */
+
+/* רקע כהה לגוף הדף */
+body.manager-mode {
+    background-color: #0f172a; /* Slate 900 */
+    color: white;
+}
+
+/* כרטיס מנהל מעוצב */
+.card-manager {
+    position: relative;
+    border-radius: 2.5rem; /* פינות עגולות מאוד */
+    overflow: hidden; /* כדי שהפס הכחול לא יצא מהפינות */
+    padding: 3rem;
+    max-width: 28rem;
+    margin: auto;
+    background-color: white;
+    color: #0f172a;
+}
+
+/* הפס הכחול למעלה */
+.card-manager::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 8px;
+    background-color: #2563eb; /* Blue 600 */
+}
+
+/* תוויות קטנות ומודגשות (Micro Labels) */
+.label-micro {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em; /* רווח רחב בין אותיות */
+    font-weight: 900;
+    color: #94a3b8; /* Slate 400 */
+    margin-bottom: 5px;
+    margin-left: 5px;
+}
+
+.input-manager {
+    background-color: #f8fafc;
+    border: none;
+    border-radius: 1rem;
+    padding: 1.25rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.input-manager:focus {
+    box-shadow: 0 0 0 2px #0f172a;
+}
+
+.btn-manager {
+    background-color: #0f172a;
+    color: white;
+    padding: 1.25rem;
+    border-radius: 1rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 1rem;
+}
+
+.btn-manager:hover {
+    background-color: black;
+    transform: scale(0.98);
+}
+
+.card-extra-round {
+    border-radius: 2.5rem;
+    box-shadow: 0 25px 50px -12px rgba(203, 213, 225, 0.6); /* Shadow-2xl with slate color */
+    border: 1px solid #f1f5f9;
+}
+
+.input-modern {
+    background-color: #f8fafc;
+    border: none !important;
+    border-radius: 1rem;
+    padding: 1rem 1.25rem;
+    font-weight: 700;
+    transition: all 0.2s;
+}
+
+.input-modern:focus {
+    background-color: white;
+    box-shadow: 0 0 0 2px #2563eb;
+}
+
+.link-primary {
+    color: #2563eb;
+    font-weight: 900;
+    text-decoration: none;
+}
+.link-primary:hover { text-decoration: underline; }
+
+.link-guest {
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+.link-guest:hover { color: #475569; }

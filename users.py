@@ -42,7 +42,6 @@ def read_user(email):
 
     user_data = result[0]
 
-    # שליפת טלפונים
     phones_raw = data.sql_query("SELECT phone_number FROM UserPhones WHERE email = %s", email)
     phone_numbers = [p[0] for p in phones_raw]
 
@@ -61,11 +60,36 @@ def read_user(email):
     return new_user
 
 
-# --- בדיקה ---
-user1 = read_user('reg1@gmail.com')
-print(user1)
+def get_password(email):
+    return data.sql_query("""SELECT r.password from RegisteredUsers as r WHERE email = %s""", email)[0][0]
 
 
-def get_password():
-    return data.sql_query("""SELECT u.password from Users WHERE email = %s""", email)
+def is_user(email):
+    result = data.sql_query("""select * from users where email = %s""", email)
+    if not result:
+        return False
+    return read_user(email)
 
+def add_user(user):
+    if is_user(user.email):
+        return False
+
+    data.sql_insert("INSERT INTO Users (email, first_name, last_name) VALUES (%s, %s, %s)",
+                            user.email, user.first_name, user.last_name)
+
+            # 2. יצירת RegisteredUser
+    data.sql_insert("""INSERT INTO RegisteredUsers (email, password, passport_number, birth_date, registration_date)
+                               VALUES (%s, %s, %s, %s, CURDATE())""",
+                            user.email, user.password, user.passport_number, user.birth_date)
+
+    if user.phone_numbers:
+        phones_list = user.phone_numbers.split(',')
+        query_phone = "INSERT INTO UserPhones (email, phone_number) VALUES (%s, %s)"
+        for phone in phones_list:
+            clean_phone = phone.strip()  # מנקה רווחים מיותרים בצדדים
+            if clean_phone:  # מוודא שלא מכניסים סתם ריק
+                data.sql_insert(query_phone, user.email, clean_phone)
+
+
+if __name__ == "__main__":
+    print(get_password('lihibarmeir@mail.tau.ac.il'))

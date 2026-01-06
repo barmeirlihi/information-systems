@@ -2,9 +2,48 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guest Check-In</title>
+    <style>
+        body { font-family: Arial, sans-serif; direction: ltr; padding: 20px; }
+        .container { max-width: 400px; margin: 0 auto; }
+        input { width: 100%; padding: 8px; margin: 5px 0 15px 0; box-sizing: border-box; }
+        .new-details { background-color: #f9f9f9; padding: 15px; border: 1px solid #ddd; margin-bottom: 15px; }
+        button { background-color: #4CAF50; color: white; padding: 10px 15px; border: none; cursor: pointer; width: 100%; }
+        button:hover { background-color: #45a049; }
+    </style>
 </head>
 <body>
+
+<div class="container">
+    <h1>Guest Check-In</h1>
+
+    <form action="/guest" method="POST">
+        <label for="email">Email Address:</label>
+        <input type="email" id="email" name="email"
+               value="{{ email_value if email_value else '' }}"
+               {% if show_details %}readonly style="background-color: #eee;"{% endif %}
+               required>
+
+        {% if show_details %}
+            <div class="new-details">
+                <h3>It looks like you are new here!</h3>
+                <p>Please provide your details to continue:</p>
+
+                <label for="first_name">First Name:</label>
+                <input type="text" id="first_name" name="first_name" required>
+
+                <label for="last_name">Last Name:</label>
+                <input type="text" id="last_name" name="last_name" required>
+
+                <label for="phone">Phone Number:</label>
+                <input type="text" id="phone" name="phone" required>
+            </div>
+        {% endif %}
+
+        <button type="submit">Continue</button>
+    </form>
+</div>
 
 </body>
 </html>

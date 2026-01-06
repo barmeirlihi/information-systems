@@ -2,14 +2,83 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlyTau - Discover New Horizons</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 
+    <div class="hero">
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+            <h1 class="hero-title">
+                DISCOVER <br>
+                <span>NEW HORIZONS.</span>
+            </h1>
+            <p class="hero-subtitle">
+                FlyTau connects you to the world with the comfort and reliability you deserve.
+            </p>
+
+            {% if session.get('user_email') %}
+                <div>
+                    <a href="/book_flights" class="btn btn-hero">Start Booking Now &rarr;</a>
+                    <p class="welcome-back-text">Welcome Back</p>
+                </div>
+            {% else %}
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                    <a href="/login" class="btn btn-primary" style="width: auto;">Login to Start</a>
+                    <a href="/sign_up" class="btn btn-outline">Register Account</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if not session.get('user_email') %}
+    <section class="features-section">
+        <div class="section-title">
+            <h2>Identify Your Journey</h2>
+            <p class="section-subtitle">Choose how you want to proceed</p>
+        </div>
+
+        <div class="cards-grid">
+
+            <a href="/login" class="card-link">
+                <div class="card card-hover theme-blue">
+                    <div class="icon-circle">🔑</div>
+                    <h3>Member</h3>
+                    <p>Login to access your saved passport details and 5% cancellation fee policy.</p>
+                    <span class="link-text">Log in &rarr;</span>
+                </div>
+            </a>
+
+            <a href="/sign_up" class="card-link">
+                <div class="card card-hover theme-green">
+                    <div class="icon-circle">✨</div>
+                    <h3>New User</h3>
+                    <p>Register today to start earning university points and enjoy faster checkouts.</p>
+                    <span class="link-text">Register &rarr;</span>
+                </div>
+            </a>
+
+            <a href="/guest" class="card-link">
+                <div class="card card-hover theme-slate">
+                    <div class="icon-circle">👤</div>
+                    <h3>Guest</h3>
+                    <p>No account? No problem. Provide basic info to search and book flights instantly.</p>
+                    <span class="link-text">Proceed &rarr;</span>
+                </div>
+            </a>
+
+        </div>
+
+        <div class="manager-section">
+            <p class="section-subtitle" style="margin-bottom: 10px;">Internal Staff Use Only</p>
+            <a href="/manager" class="btn btn-dark" style="width: auto;">
+                🛡️ Manager Access
+            </a>
+        </div>
+    </section>
+    {% endif %}
+
 </body>
 </html>
-
-
-
-#מעבר ישיר לעמוד הזמן טיסה
-# מעבר ללוג אין
