@@ -2,9 +2,407 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Flights - FlyTau</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .search-container {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 3rem 2rem;
+            margin-bottom: 3rem;
+        }
+        
+        .search-form {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 1.5rem;
+            padding: 2rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group {
+            margin-bottom: 0;
+        }
+        
+        .form-group label {
+            color: #334155;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+        
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 0.75rem;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+        
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .search-btn {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 0.75rem;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .search-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(102, 126, 234, 0.3);
+        }
+        
+        .flights-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem 3rem;
+        }
+        
+        .flights-title {
+            text-align: center;
+            font-size: 2rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 2rem;
+        }
+        
+        .flights-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+            width: 100%;
+        }
+        
+        @media (max-width: 1200px) {
+            .flights-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        .flight-card {
+            background: white;
+            border-radius: 1rem;
+            padding: 0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            width: 100%;
+        }
+        
+        .flight-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        
+        .flight-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .flight-details {
+            padding: 1.5rem;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .flight-route {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .route-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .airport-code {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        
+        .airport-name {
+            font-size: 0.875rem;
+            color: #64748b;
+            text-align: center;
+        }
+        
+        .flight-arrow {
+            font-size: 1.5rem;
+            color: #667eea;
+            margin: 0 0.5rem;
+        }
+        
+        .flight-info {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-top: 1rem;
+            flex: 1;
+        }
+        
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .info-label {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.25rem;
+        }
+        
+        .info-value {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #0f172a;
+        }
+        
+        .available-seats {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: #ecfdf5;
+            color: #059669;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+        }
+        
+        .available-seats.low {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+        
+        .available-seats.medium {
+            background: #fffbeb;
+            color: #d97706;
+        }
+        
+        .flight-price-section {
+            padding: 1.5rem;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .price-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        
+        .price-row:last-child {
+            margin-bottom: 0;
+        }
+        
+        .price-label {
+            font-size: 0.875rem;
+            color: #64748b;
+        }
+        
+        .price-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #667eea;
+        }
+        
+        .price-value-business {
+            font-size: 1.25rem;
+            color: #94a3b8;
+        }
+        
+        .no-flights {
+            text-align: center;
+            padding: 3rem;
+            color: #64748b;
+            font-size: 1.1rem;
+        }
+        
+        @media (max-width: 768px) {
+            .flights-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .flight-info {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
+    {% if session.get('user_type') %}
+    <div style="position: fixed; top: 20px; right: 20px; z-index: 1000;">
+        <div style="display: flex; gap: 0.5rem;">
+            {% if session.get('user_type') == 'user' %}
+            <a href="/my_orders" style="background-color: #2563eb; color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+                My Orders
+            </a>
+            {% elif session.get('user_type') == 'guest' %}
+            <a href="/manage_orders" style="background-color: #2563eb; color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+                Manage Orders
+            </a>
+            {% endif %}
+            <a href="/logout" style="background-color: #ef4444; color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+                Logout
+            </a>
+        </div>
+    </div>
+    {% endif %}
 
+    <div class="search-container">
+        <div class="search-form">
+            <form method="POST" action="/book_flights">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="origin">Origin</label>
+                        <select name="origin" id="origin">
+                            <option value="">All Destinations</option>
+                            {% for airport in airports %}
+                            <option value="{{ airport[0] }}" {% if search_params.get('origin') == airport[0] %}selected{% endif %}>
+                                {{ airport[0] }} - {{ airport[1] }}, {{ airport[2] }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="destination">Destination</label>
+                        <select name="destination" id="destination">
+                            <option value="">All Destinations</option>
+                            {% for airport in airports %}
+                            <option value="{{ airport[0] }}" {% if search_params.get('destination') == airport[0] %}selected{% endif %}>
+                                {{ airport[0] }} - {{ airport[1] }}, {{ airport[2] }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="date">Date</label>
+                        <input type="date" name="date" id="date" value="{{ search_params.get('date', '') }}">
+                    </div>
+                </div>
+                
+                <button type="submit" class="search-btn">Search Flights</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="flights-container">
+        <h2 class="flights-title">Available Flights</h2>
+        
+        {% if flights %}
+        <div class="flights-grid">
+            {% for flight in flights %}
+            <a href="/select_seats/{{ flight[0] }}" style="text-decoration: none; color: inherit;">
+                <div class="flight-card">
+                    <img src="{{ flight[14] }}" alt="{{ flight[10] }}" class="flight-image" onerror="this.src='https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&q=80&w=800'">
+                    
+                    <div class="flight-details">
+                        <div class="flight-route">
+                            <div class="route-section">
+                                <div class="airport-code">{{ flight[3] }}</div>
+                                <div class="airport-name">{{ flight[8] }}, {{ flight[9] }}</div>
+                            </div>
+                            <div class="flight-arrow">→</div>
+                            <div class="route-section">
+                                <div class="airport-code">{{ flight[4] }}</div>
+                                <div class="airport-name">{{ flight[10] }}, {{ flight[11] }}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="flight-info">
+                            <div class="info-item">
+                                <span class="info-label">Date</span>
+                                <span class="info-value">{{ flight[2] }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Departure Time</span>
+                                <span class="info-value">{{ flight[1] }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Duration</span>
+                                <span class="info-value">{{ flight[7] // 60 }}:{{ '%02d' % (flight[7] % 60) }}h</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Flight Number</span>
+                                <span class="info-value">#{{ flight[0] }}</span>
+                            </div>
+                        </div>
+                        
+                        {% set seats = flight[13] %}
+                        {% if seats <= 5 %}
+                            <div class="available-seats low">⚠️ {{ seats }} seats available</div>
+                        {% elif seats <= 15 %}
+                            <div class="available-seats medium">⚡ {{ seats }} seats available</div>
+                        {% else %}
+                            <div class="available-seats">✓ {{ seats }} seats available</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="flight-price-section">
+                        <div class="price-row">
+                            <span class="price-label">Economy</span>
+                            <span class="price-value">${{ flight[5]|round|int }}</span>
+                        </div>
+                        {% if flight[6] %}
+                        <div class="price-row">
+                            <span class="price-label">Business</span>
+                            <span class="price-value-business">${{ flight[6]|round|int }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="no-flights">
+            <p>No flights found matching your search criteria.</p>
+            <p>Please try adjusting your search parameters.</p>
+        </div>
+        {% endif %}
+    </div>
 </body>
 </html>

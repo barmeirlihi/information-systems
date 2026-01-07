@@ -27,6 +27,36 @@ class User:
                 f"Passport: {self.passport_number}\n"
                 f"Birth Date: {self.birth_date}\n"
                 f"Phones: {self.phone_numbers}")
+    
+    def get_booking_form_data(self):
+        """Returns user data for booking form (read-only for registered users)"""
+        return {
+            'first_name': self.first_name,
+            'last_name': self.last_name,
+            'passport_number': self.passport_number,
+            'birth_date': str(self.birth_date),
+            'phone_numbers': ', '.join(self.phone_numbers) if self.phone_numbers else ''
+        }
+    
+    def add_order(self, order):
+        """
+        Creates an order for a registered user
+        Uses existing user data from database
+        Updates order with user data and creates order in DB
+        
+        Args:
+            order: Order object
+            
+        Returns: (order_id, error_message)
+        """
+        # Set user data in order (from database)
+        order.user_data = self.get_booking_form_data()
+        order.email = self.email
+        
+        # Create order in database (saves for both users and guests)
+        order_id, error = order.process_booking(order.flight, order.selected_seats)
+        
+        return order_id, error
 
 
 def read_user(email):
@@ -61,7 +91,10 @@ def read_user(email):
 
 
 def get_password(email):
-    return data.sql_query("""SELECT r.password from RegisteredUsers as r WHERE email = %s""", email)[0][0]
+    result = data.sql_query("""SELECT r.password from RegisteredUsers as r WHERE email = %s""", email)
+    if not result:
+        return None
+    return result[0][0]
 
 
 def is_user(email):
