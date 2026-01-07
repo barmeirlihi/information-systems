@@ -18,6 +18,7 @@ app.config.update(
     SESSION_PERMANENT=True,
     PERMANENT_SESSION_LIFETIME=timedelta(minutes=10),
     SESSION_REFRESH_EACH_REQUEST=True,
+    SESSION_FILE_THRESHOLD=20,
     SESSION_COOKIE_SECURE=True
 )
 Session(app)
