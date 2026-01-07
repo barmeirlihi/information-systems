@@ -12,9 +12,25 @@ from guest import *
 
 
 app = Flask(__name__)
-
+app.config.update(
+    SESSION_TYPE="filesystem",
+    SESSION_FILE_DIR="/flask_session_data",
+    SESSION_PERMANENT=True,
+    PERMANENT_SESSION_LIFETIME=timedelta(minutes=10),
+    SESSION_REFRESH_EACH_REQUEST=True,
+    SESSION_COOKIE_SECURE=True
+)
+Session(app)
 
 flytau_db = {"Donald@mail.tau.ac.il": "123!@ABC"}
+
+
+def require_user_type(allowed_types):
+    """בודק אם המשתמש מחובר וסוג המשתמש מורשה"""
+    user_type = session.get('user_type')
+    if not user_type or user_type not in allowed_types:
+        return False
+    return True
 
 @app.route("/")
 def homepage():
@@ -24,9 +40,11 @@ def homepage():
 @app.route("/login", methods=["POST", "GET"])
 def login():
     if request.method == "POST":
-        email = request.form.get("email")  # unique value
+        email = request.form.get("email")
         password = request.form.get("password")
         if users.get_password(email) == password:
+            session['user_type'] = 'user'
+            session['user_email'] = email
             return redirect("/book_flights.html")
         else:
             return render_template("login.html", message='Incorrect Login Details.')
@@ -49,6 +67,8 @@ def sign_up():
         new_user = User(email, password, first_name, last_name, phones_string, None, birth_date, passport_number)
         try:
             add_user(new_user)
+            session['user_type'] = 'user'
+            session['user_email'] = email
             return redirect("/book_flights")
 
         except Exception as e:
@@ -65,6 +85,8 @@ def guest_page():
 
         # 1. בדיקה האם הוא כבר קיים כאורח
         if guest.is_guest(email):
+            session['user_type'] = 'guest'
+            session['user_email'] = email
             return redirect("/book_flights.html")
 
         # 2. בדיקה חדשה: האם הוא קיים כמשתמש רשום?
@@ -84,6 +106,8 @@ def guest_page():
                 # יצירת אובייקט אורח ושליחה לפונקציה (העברת הטלפון כרשימה)
                 new_guest = Guest(email, first_name, last_name, [phone])
                 guest.add_guest(new_guest)
+                session['user_type'] = 'guest'
+                session['user_email'] = email
                 return redirect("/book_flights.html")
 
             # אם אין פרטים (שלב א') -> נטען את הדף עם השדות הפתוחים
@@ -98,6 +122,8 @@ def manager():
         password = request.form.get("password")
         result = data.sql_query("""SELECT password FROM Managers WHERE manager_id = %s""", manager_id)
         if result and result[0][0] == password:
+            session['user_type'] = 'manager'
+            session['manager_id'] = manager_id
             return redirect("/flights_management")
         else:
             return render_template("manager.html", message='Incorrect Login Details.')
@@ -105,7 +131,14 @@ def manager():
 
 @app.route("/flights_management")
 def flights_management():
+    if not require_user_type(['manager']):
+        return render_template("manager.html", message='Access denied. Please log in as a manager.')
     return render_template("flights_management.html")
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/")
 
 
 if __name__ == "__main__":
