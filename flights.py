@@ -182,6 +182,55 @@ class Flight(ABC):
         # Clear cached booked seats to force refresh
         self._booked_seats = None
     
+    def cancel_order_seats(self, order_id):
+        """
+        Cancels seats for a specific order (frees up seats)
+        
+        Args:
+            order_id: Order ID to cancel seats for
+        """
+        query = """
+            DELETE FROM FlightTickets
+            WHERE order_id = %s AND flight_id = %s
+        """
+        data.sql_insert(query, order_id, self.flight_id)
+        # Clear cached booked seats to force refresh
+        self._booked_seats = None
+    
+    def cancel_flight(self):
+        """
+        Cancels the flight - updates status to 'Cancelled'
+        Also updates all related orders to 'Cancelled by System'
+        
+        Returns:
+            (success, error_message)
+        """
+        try:
+            # Update flight status
+            query = """
+                UPDATE Flights
+                SET status = 'Cancelled'
+                WHERE flight_id = %s
+            """
+            data.sql_insert(query, self.flight_id)
+            self.status = 'Cancelled'
+            
+            # Update all orders for this flight to 'Cancelled by System'
+            orders_query = """
+                UPDATE Orders
+                SET order_status = 'Cancelled by System'
+                WHERE order_id IN (
+                    SELECT DISTINCT order_id
+                    FROM FlightTickets
+                    WHERE flight_id = %s
+                )
+            """
+            data.sql_insert(orders_query, self.flight_id)
+            
+            return True, None
+        except Exception as e:
+            return False, f"Error cancelling flight: {str(e)}"
+    
     def get_destination_image(self):
         """Returns URL of destination image"""
         destination_images = {
@@ -194,8 +243,15 @@ class Flight(ABC):
         return destination_images.get(self.destination_airport, default_image)
     
     @staticmethod
-    def get_flight_by_id(flight_id):
-        """Factory method to create appropriate Flight subclass from database"""
+    def get_flight_by_id(flight_id, include_all_statuses=False):
+        """
+        Factory method to create appropriate Flight subclass from database
+        
+        Args:
+            flight_id: Flight ID
+            include_all_statuses: If True, includes all flights regardless of status.
+                                 If False, only returns Active flights.
+        """
         query = """
             SELECT 
                 f.flight_id,
@@ -216,8 +272,11 @@ class Flight(ABC):
             JOIN Airports ao ON f.origin_airport_name = ao.airport_name
             JOIN Airports ad ON f.destination_airport_name = ad.airport_name
             JOIN Planes p ON f.plane_id = p.plane_id
-            WHERE f.flight_id = %s AND f.status = 'Active'
+            WHERE f.flight_id = %s
         """
+        if not include_all_statuses:
+            query += " AND f.status = 'Active'"
+        
         result = data.sql_query(query, flight_id)
         if not result:
             return None
@@ -391,67 +450,8 @@ class LargeFlight(Flight):
         return True
 
 
-class Order:
-    """Represents a booking order"""
-    
-    _next_order_id = None
-    
-    def __init__(self, order_id=None, email=None, order_status='Confirmed', 
-                 order_date=None, total_payment=0.0):
-        self.order_id = order_id
-        self.email = email
-        self.order_status = order_status
-        self.order_date = order_date if order_date else date.today()
-        self.total_payment = float(total_payment)
-    
-    @staticmethod
-    def get_next_order_id():
-        """Gets the next available order ID"""
-        if Order._next_order_id is None:
-            query = "SELECT MAX(order_id) FROM Orders"
-            result = data.sql_query(query)
-            if result and result[0][0]:
-                Order._next_order_id = result[0][0] + 1
-            else:
-                Order._next_order_id = 501  # Starting order_id if table is empty
-        else:
-            Order._next_order_id += 1
-        return Order._next_order_id
-    
-    def create(self):
-        """Creates the order in the database"""
-        if self.order_id is None:
-            self.order_id = Order.get_next_order_id()
-        
-        query = """
-            INSERT INTO Orders (order_id, email, order_status, order_date, total_payment)
-            VALUES (%s, %s, %s, %s, %s)
-        """
-        data.sql_insert(query, self.order_id, self.email, self.order_status, 
-                       self.order_date, self.total_payment)
-        return self.order_id
-    
-    def process_booking(self, flight, selected_seats):
-        """
-        Processes a complete seat booking
-        Returns: (order_id, error_message)
-        """
-        # Validate seat selection
-        total_price, seat_details, error = flight.validate_seat_selection(selected_seats)
-        
-        if error:
-            return None, error
-        
-        # Set order details
-        self.total_payment = total_price
-        
-        # Create order in database
-        order_id = self.create()
-        
-        # Book all selected seats
-        flight.book_seats(order_id, seat_details)
-        
-        return order_id, None
+# Order class moved to order.py
+# Note: Import Order from order.py when needed to avoid circular import
 
 
 # Helper functions for backward compatibility

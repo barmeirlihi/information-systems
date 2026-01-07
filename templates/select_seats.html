@@ -206,6 +206,49 @@
             cursor: not-allowed;
         }
         
+        .seat-number {
+            display: block;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            line-height: 31px;
+            position: relative;
+            transition: all 0.2s ease;
+        }
+        
+        /* Visual feedback for checked checkboxes - works without JavaScript */
+        /* Style the seat number when checkbox is checked */
+        .seat input[type="checkbox"]:checked ~ .seat-number {
+            color: white !important;
+            font-weight: bold;
+        }
+        
+        /* Add checkmark before seat number when selected */
+        .seat input[type="checkbox"]:checked ~ .seat-number::before {
+            content: "✓ ";
+            font-weight: bold;
+            color: white;
+            margin-right: 2px;
+        }
+        
+        /* Style the label when checkbox is checked - using :has() for modern browsers */
+        .seat:has(input[type="checkbox"]:checked):not(.booked) {
+            background: #667eea !important;
+            border-color: #667eea !important;
+            color: white !important;
+            transform: scale(1.08);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.4), 0 4px 8px rgba(102, 126, 234, 0.3);
+            transition: all 0.2s ease;
+            z-index: 10;
+            position: relative;
+        }
+        
+        /* For browsers that support :has() - ensure seat number is white */
+        .seat:has(input[type="checkbox"]:checked):not(.booked) .seat-number {
+            color: white !important;
+            font-weight: bold;
+        }
+        
         .aisle {
             width: 20px;
         }
@@ -323,7 +366,16 @@
 </head>
 <body>
     {% if session.get('user_type') %}
-    <div style="position: fixed; top: 20px; right: 20px; z-index: 1000;">
+    <div style="position: fixed; top: 20px; right: 20px; z-index: 1000; display: flex; gap: 0.5rem;">
+        {% if session.get('user_type') == 'user' %}
+        <a href="/my_orders" style="background-color: #2563eb; color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+            My Orders
+        </a>
+        {% elif session.get('user_type') == 'guest' %}
+        <a href="/manage_orders" style="background-color: #2563eb; color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+            Manage Orders
+        </a>
+        {% endif %}
         <a href="/logout" style="background-color: #ef4444; color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
             Logout
         </a>
@@ -418,7 +470,7 @@
                                                value="{{ row_num }}-{{ seat['column'] }}"
                                                {% if seat['booked'] or (seat['class'] == 'Business' and price_business is none) %}disabled{% endif %}
                                                style="display: none;">
-                                        {{ seat['column'] }}
+                                        <span class="seat-number">{{ seat['column'] }}</span>
                                     </label>
                                 {% endfor %}
                             </div>
@@ -442,7 +494,7 @@
                                                value="{{ row_num }}-{{ seat['column'] }}"
                                                {% if seat['booked'] or (seat['class'] == 'Business' and price_business is none) %}disabled{% endif %}
                                                style="display: none;">
-                                        {{ seat['column'] }}
+                                        <span class="seat-number">{{ seat['column'] }}</span>
                                     </label>
                                 {% endfor %}
                             </div>
@@ -470,105 +522,25 @@
                 </div>
 
                 <div class="selected-seats-list">
-                    <div style="font-weight: 600; margin-bottom: 0.5rem; color: #475569;">Selected Seats:</div>
-                    <div id="selectedSeatsDisplay" style="color: #64748b; font-size: 0.875rem;">
-                        No seats selected
+                    <div style="font-weight: 600; margin-bottom: 0.5rem; color: #475569;">Instructions:</div>
+                    <div style="color: #64748b; font-size: 0.875rem;">
+                        Select one or more seats from the map below, then click "Book Seats" to continue.
                     </div>
                 </div>
 
                 <div class="total-price">
                     <div style="display: flex; justify-content: space-between;">
-                        <span>Total:</span>
-                        <span id="totalPrice">$0</span>
+                        <span>Note:</span>
+                        <span style="font-size: 0.875rem; color: #64748b;">Total price will be calculated based on selected seats</span>
                     </div>
                 </div>
 
-                <button type="submit" form="seatForm" class="book-btn" id="bookBtn" disabled>
+                <button type="submit" form="seatForm" class="book-btn">
                     Book Seats
                 </button>
             </div>
         </div>
     </div>
 
-    <script>
-        const priceEconomy = {{ price_economy }};
-        const priceBusiness = {% if price_business is not none %}{{ price_business }}{% else %}null{% endif %};
-        const seatClasses = {};
-        
-        // Build seat class map
-        {% for row_num, seats in seats_by_row.items() %}
-            {% for seat in seats %}
-                seatClasses['{{ row_num }}-{{ seat['column'] }}'] = '{{ seat['class'] }}';
-            {% endfor %}
-        {% endfor %}
-
-        const checkboxes = document.querySelectorAll('input[name="selected_seats"]');
-        const selectedSeatsDisplay = document.getElementById('selectedSeatsDisplay');
-        const totalPriceDisplay = document.getElementById('totalPrice');
-        const bookBtn = document.getElementById('bookBtn');
-
-        function updateSummary() {
-            const selected = Array.from(checkboxes).filter(cb => cb.checked);
-            const selectedSeats = selected.map(cb => {
-                const [row, col] = cb.value.split('-');
-                const seatClass = seatClasses[cb.value];
-                return { row, col, class: seatClass };
-            });
-
-            // Update display
-            if (selectedSeats.length === 0) {
-                selectedSeatsDisplay.innerHTML = 'No seats selected';
-                totalPriceDisplay.textContent = '$0';
-                bookBtn.disabled = true;
-            } else {
-                selectedSeatsDisplay.innerHTML = selectedSeats.map(s => 
-                    `Row ${s.row}, Seat ${s.col} (${s.class})`
-                ).join('<br>');
-                
-                let total = 0;
-                let hasBusinessWithoutPrice = false;
-                selectedSeats.forEach(s => {
-                    if (s.class === 'Business') {
-                        if (priceBusiness === null) {
-                            hasBusinessWithoutPrice = true;
-                            return;
-                        }
-                        total += priceBusiness;
-                    } else {
-                        total += priceEconomy;
-                    }
-                });
-                
-                if (hasBusinessWithoutPrice) {
-                    selectedSeatsDisplay.innerHTML = 'Business class seats are not available for this flight';
-                    totalPriceDisplay.textContent = '$0';
-                    bookBtn.disabled = true;
-                } else {
-                    totalPriceDisplay.textContent = '$' + total.toFixed(2);
-                    bookBtn.disabled = false;
-                }
-            }
-
-            // Update visual state
-            checkboxes.forEach(cb => {
-                const label = cb.closest('label');
-                if (cb.checked) {
-                    label.classList.remove('available-economy', 'available-business');
-                    label.classList.add('selected');
-                } else if (!cb.disabled) {
-                    label.classList.remove('selected');
-                    const seatClass = seatClasses[cb.value];
-                    label.classList.add(seatClass === 'Business' ? 'available-business' : 'available-economy');
-                }
-            });
-        }
-
-        checkboxes.forEach(cb => {
-            cb.addEventListener('change', updateSummary);
-        });
-
-        // Initialize
-        updateSummary();
-    </script>
 </body>
 </html>
