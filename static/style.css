@@ -13,7 +13,6 @@ body {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    /* ביטלתי את ה-Padding הכללי כדי שהתמונה תגיע לקצוות */
     padding: 0;
 }
 
@@ -34,9 +33,9 @@ body {
     width: 100%;
     border-radius: 1.5rem;
     padding: 2.5rem;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    transition: transform 0.2s, box-shadow 0.2s;
+    border: 2px solid #ffd29d;
+    box-shadow: 0 4px 6px -1px rgba(53, 53, 53, 0.1), 0 2px 4px -1px rgba(53, 53, 53, 0.06);
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
     height: 100%; /* חשוב לגריד */
     display: flex;
     flex-direction: column;
@@ -45,7 +44,8 @@ body {
 /* אפקט ריחוף לכרטיסים לחיצים */
 .card-hover:hover {
     transform: translateY(-5px);
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 20px 25px -5px rgba(53, 53, 53, 0.15);
+    border-color: #457b9d;
 }
 
 /* שדות טופס */
@@ -77,21 +77,18 @@ input:focus {
 /* --- Hero Section (החלק העליון בדף הבית) --- */
 .hero {
     position: relative;
-    height: 70vh;
-    background-image: url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=2000');
+    min-height: 75vh;
     background-size: cover;
     background-position: center;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
     display: flex;
     align-items: center;
     justify-content: center;
     text-align: center;
     color: white;
-}
-
-.hero-overlay {
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(15, 23, 42, 0.6); /* Slate-900 with opacity */
+    padding: 4rem 2rem;
+    overflow: hidden;
 }
 
 .hero-content {
@@ -104,24 +101,32 @@ input:focus {
 .hero-title {
     font-size: 3.5rem;
     font-weight: 900;
-    line-height: 1.1;
+    line-height: 1.2;
     margin-bottom: 1.5rem;
+    color: white;
+    text-shadow: 3px 3px 15px rgba(0, 0, 0, 0.8), 0 0 40px rgba(0, 0, 0, 0.6);
+    letter-spacing: -0.02em;
 }
 
 .hero-title span {
-    color: #60a5fa; /* תכלת */
+    color: white; /* צבע כמו תחילת המשפט */
     font-style: italic;
+    display: block;
+    margin-top: 0.3rem;
+    text-shadow: 3px 3px 15px rgba(0, 0, 0, 0.8), 0 0 40px rgba(0, 0, 0, 0.6);
 }
 
 .hero-subtitle {
     font-size: 1.25rem;
-    color: #cbd5e1;
+    color: white;
     margin-bottom: 2.5rem;
+    opacity: 0.95;
+    text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 0, 0, 0.6);
 }
 
 .welcome-back-text {
     margin-top: 1rem;
-    color: #94a3b8;
+    color: #ffd29d;
     font-weight: bold;
     letter-spacing: 2px;
     font-size: 0.8rem;
@@ -140,12 +145,18 @@ input:focus {
     margin-bottom: 3rem;
 }
 
+.section-title h2 {
+    color: #353535;
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+}
+
 .section-subtitle {
     font-size: 0.8rem;
     text-transform: uppercase;
     letter-spacing: 2px;
     font-weight: bold;
-    color: #64748b;
+    color: #457b9d;
     margin-top: 0.5rem;
 }
 
@@ -153,6 +164,21 @@ input:focus {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 2rem;
+}
+
+.cards-grid-centered {
+    display: flex;
+    justify-content: center;
+    align-items: stretch;
+    flex-wrap: wrap;
+    gap: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.cards-grid-centered .card-link {
+    flex: 0 1 300px;
+    max-width: 320px;
 }
 
 .card-link {
@@ -174,27 +200,34 @@ input:focus {
     transition: all 0.2s;
 }
 
-.btn-primary { background-color: #2563eb; color: white; width: 100%; }
-.btn-primary:hover { background-color: #1d4ed8; }
+.btn-primary { background-color: #457b9d; color: white; width: 100%; }
+.btn-primary:hover { background-color: #353535; }
 
 .btn-hero {
     background-color: white;
-    color: #0f172a;
+    color: #353535;
     font-size: 1.2rem;
     border-radius: 1rem;
     padding: 1rem 3rem;
+    box-shadow: 0 4px 15px rgba(53, 53, 53, 0.3);
+    transition: all 0.3s ease;
 }
-.btn-hero:hover { background-color: #f8fafc; }
+.btn-hero:hover { 
+    background-color: #457b9d; 
+    color: white; 
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(53, 53, 53, 0.4);
+}
 
 .btn-outline {
-    background-color: rgba(255,255,255,0.1);
-    border: 1px solid rgba(255,255,255,0.3);
+    background-color: rgba(255,255,255,0.2);
+    border: 2px solid white;
     color: white;
 }
-.btn-outline:hover { background-color: white; color: #0f172a; }
+.btn-outline:hover { background-color: white; color: #353535; }
 
-.btn-dark { background-color: #0f172a; color: white; }
-.btn-dark:hover { background-color: black; }
+.btn-dark { background-color: #353535; color: white; }
+.btn-dark:hover { background-color: #457b9d; }
 
 /* --- עיצובים ייחודיים לכרטיסים (צבעים) --- */
 .icon-circle {
@@ -205,23 +238,37 @@ input:focus {
     font-size: 1.8rem;
 }
 
+.card h3 {
+    color: #353535;
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    font-weight: 700;
+}
+
+.card p {
+    color: #457b9d;
+    line-height: 1.6;
+    margin-bottom: 1rem;
+    flex-grow: 1;
+}
+
 /* Member Colors */
-.theme-blue .icon-circle { background-color: #eff6ff; color: #2563eb; }
-.theme-blue .link-text { color: #2563eb; font-weight: bold; margin-top: auto; }
+.theme-blue .icon-circle { background-color: #ffd29d; color: #353535; }
+.theme-blue .link-text { color: #457b9d; font-weight: bold; margin-top: auto; }
 
 /* New User Colors */
-.theme-green .icon-circle { background-color: #ecfdf5; color: #10b981; }
-.theme-green .link-text { color: #10b981; font-weight: bold; margin-top: auto; }
+.theme-green .icon-circle { background-color: #ffd29d; color: #353535; }
+.theme-green .link-text { color: #457b9d; font-weight: bold; margin-top: auto; }
 
 /* Guest Colors */
-.theme-slate .icon-circle { background-color: #f1f5f9; color: #475569; }
-.theme-slate .link-text { color: #0f172a; font-weight: bold; margin-top: auto; }
+.theme-slate .icon-circle { background-color: #ffd29d; color: #353535; }
+.theme-slate .link-text { color: #457b9d; font-weight: bold; margin-top: auto; }
 
 .manager-section {
     text-align: center;
     margin-top: 4rem;
     padding-top: 2rem;
-    border-top: 1px solid #e2e8f0;
+    border-top: 2px solid #ffd29d;
 }
 
 /* --- תוספות עבור דף ההרשמה (Grid & Colors) --- */
@@ -251,13 +298,15 @@ input:focus {
 }
 
 .btn-success {
-    background-color: #059669;
-    color: white;
-    box-shadow: 0 4px 6px -1px rgba(5, 150, 105, 0.2);
+    background-color: #94d2bd;
+    color: #353535;
+    box-shadow: 0 4px 6px -1px rgba(148, 210, 189, 0.3);
+    font-weight: 700;
 }
 
 .btn-success:hover {
-    background-color: #047857;
+    background-color: #ffd29d;
+    color: #353535;
 }
 
 .theme-emerald .icon-circle {

@@ -7,20 +7,29 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+
     {% if session.get('user_type') %}
-    <div style="position: fixed; top: 20px; right: 20px; z-index: 1000;">
-        <a href="/logout" style="background-color: #ef4444; color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+    <div style="position: fixed; top: 20px; right: 20px; z-index: 1000; display: flex; gap: 0.5rem;">
+        {% if session.get('user_type') == 'user' %}
+        <a href="/my_orders" style="background-color: #457b9d; color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+            My Orders
+        </a>
+        {% elif session.get('user_type') == 'guest' %}
+        <a href="/manage_orders" style="background-color: #457b9d; color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+            Manage Orders
+        </a>
+        {% endif %}
+        <a href="/logout" style="background-color: #e63946; color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
             Logout
         </a>
     </div>
     {% endif %}
 
-    <div class="hero">
-        <div class="hero-overlay"></div>
+    <div class="hero" style="background-image: url('{{ url_for('static', filename='images/13DA658A-E61D-4885-BEB7-A6FDA5EB74EB.PNG') }}');">
         <div class="hero-content">
             <h1 class="hero-title">
-                DISCOVER <br>
-                <span>NEW HORIZONS.</span>
+                YOUR JOURNEY <br>
+                <span>STARTS HERE</span>
             </h1>
             <p class="hero-subtitle">
                 FlyTau connects you to the world with the comfort and reliability you deserve.
@@ -30,11 +39,6 @@
                 <div>
                     <a href="/book_flights" class="btn btn-hero">Start Booking Now &rarr;</a>
                     <p class="welcome-back-text">Welcome Back</p>
-                </div>
-            {% else %}
-                <div style="display: flex; gap: 10px; justify-content: center;">
-                    <a href="/login" class="btn btn-primary" style="width: auto;">Login to Start</a>
-                    <a href="/sign_up" class="btn btn-outline">Register Account</a>
                 </div>
             {% endif %}
         </div>
@@ -47,7 +51,7 @@
             <p class="section-subtitle">Choose how you want to proceed</p>
         </div>
 
-        <div class="cards-grid">
+        <div class="cards-grid cards-grid-centered">
 
             <a href="/login" class="card-link">
                 <div class="card card-hover theme-blue">
