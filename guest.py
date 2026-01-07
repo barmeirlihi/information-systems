@@ -43,17 +43,26 @@ def is_guest(email):
     result = data.sql_query("""select * from guests where UserEmail = %s""", email)
     if not result:
         return False
-    return read_guest(email)
+    guest_obj = read_guest(email)
+    return guest_obj is not None
 
 def add_guest(guest):
     if is_guest(guest.email):
         return False
 
-    data.sql_insert("INSERT INTO Users (email, first_name, last_name) VALUES (%s, %s, %s)",
-                            guest.email, guest.first_name, guest.last_name)
+    # בדיקה אם המשתמש כבר קיים ב-Users
+    existing_user = data.sql_query("SELECT email FROM Users WHERE email = %s", guest.email)
+    if not existing_user:
+        # רק אם המשתמש לא קיים - ניצור אותו
+        data.sql_insert("INSERT INTO Users (email, first_name, last_name) VALUES (%s, %s, %s)",
+                                guest.email, guest.first_name, guest.last_name)
+    else:
+        # אם המשתמש כבר קיים - נעדכן את הפרטים שלו
+        data.sql_insert("UPDATE Users SET first_name = %s, last_name = %s WHERE email = %s",
+                                guest.first_name, guest.last_name, guest.email)
 
-            # 2. יצירת RegisteredUser
-    data.sql_insert("""INSERT INTO Guests (UserEmail)
+    # 2. יצירת Guest (אם הוא לא קיים כבר)
+    data.sql_insert("""INSERT IGNORE INTO Guests (UserEmail)
                                VALUES (%s)""",
                             guest.email)
 

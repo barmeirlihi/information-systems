@@ -61,7 +61,10 @@ def read_user(email):
 
 
 def get_password(email):
-    return data.sql_query("""SELECT r.password from RegisteredUsers as r WHERE email = %s""", email)[0][0]
+    result = data.sql_query("""SELECT r.password from RegisteredUsers as r WHERE email = %s""", email)
+    if not result:
+        return None
+    return result[0][0]
 
 
 def is_user(email):

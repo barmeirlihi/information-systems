@@ -2,9 +2,22 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Flights - FlyTau</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+    {% if session.get('user_type') %}
+    <div style="position: fixed; top: 20px; right: 20px; z-index: 1000;">
+        <a href="/logout" style="background-color: #ef4444; color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+            Logout
+        </a>
+    </div>
+    {% endif %}
 
+    <div style="padding: 2rem; text-align: center;">
+        <h1>Book Flights</h1>
+        <p>Flight booking page coming soon...</p>
+    </div>
 </body>
 </html>

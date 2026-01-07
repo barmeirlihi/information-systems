@@ -14,6 +14,13 @@
     </style>
 </head>
 <body>
+    {% if session.get('user_type') %}
+    <div style="position: fixed; top: 20px; right: 20px; z-index: 1000;">
+        <a href="/logout" style="background-color: #ef4444; color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+            Logout
+        </a>
+    </div>
+    {% endif %}
 
 <div class="container">
     <h1>Guest Check-In</h1>
