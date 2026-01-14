@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Management Reports Dashboard - FlyTau</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body {
+            background: #2d3748;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .dashboard-header {
+            text-align: center;
+            color: white;
+            margin-bottom: 2rem;
+        }
+        
+        .dashboard-header h1 {
+            font-size: 2.5rem;
+            font-weight: 900;
+            margin-bottom: 0.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .dashboard-header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .dashboard-card {
+            background: white;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .dashboard-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+        }
+        
+        .dashboard-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #ffc857, #e9724c, #c5283d);
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .card-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin: 0;
+        }
+        
+        .card-icon {
+            font-size: 2rem;
+        }
+        
+        .card-content {
+            color: #64748b;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+        
+        .stat-card {
+            grid-column: span 3;
+            text-align: center;
+            aspect-ratio: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        .stat-value {
+            font-size: 3rem;
+            font-weight: 900;
+            color: #e9724c;
+            margin: 0.5rem 0;
+        }
+        
+        .ticket-icon {
+            font-size: 5rem;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+        
+        .stat-label {
+            font-size: 1rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .large-card {
+            grid-column: span 6;
+        }
+        
+        .full-width-card {
+            grid-column: span 12;
+        }
+        
+        .medium-card {
+            grid-column: span 9;
+        }
+        
+        .chart-container {
+            margin-top: 1rem;
+            text-align: center;
+        }
+        
+        .chart-container img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .table-container {
+            margin-top: 1rem;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        
+        .report-table th,
+        .report-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .report-table th {
+            background-color: #255f85;
+            color: white;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        .report-table tr:hover {
+            background-color: #f1f5f9;
+        }
+        
+        .no-data {
+            color: #64748b;
+            font-style: italic;
+            padding: 1rem;
+            text-align: center;
+        }
+        
+        .expand-btn {
+            background: #669bbc;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 600;
+            margin-top: 1rem;
+            transition: background 0.3s ease;
+        }
+        
+        .expand-btn:hover {
+            background: #35648a;
+        }
+        
+        .collapsed-content {
+            display: none;
+        }
+        
+        .expanded .collapsed-content {
+            display: block;
+        }
+        
+        .back-link {
+            display: inline-block;
+            color: white;
+            text-decoration: none;
+            margin-bottom: 1rem;
+            font-weight: 600;
+            transition: opacity 0.3s ease;
+        }
+        
+        .back-link:hover {
+            opacity: 0.8;
+        }
+        
+        @media (max-width: 1200px) {
+            .stat-card {
+                grid-column: span 4;
+            }
+            .large-card {
+                grid-column: span 8;
+            }
+            .medium-card {
+                grid-column: span 8;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stat-card,
+            .large-card,
+            .medium-card,
+            .full-width-card {
+                grid-column: span 1;
+            }
+            
+            .stat-card {
+                aspect-ratio: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <a href="/manager/dashboard" class="back-link">← Back to Dashboard</a>
+        
+        <div class="dashboard-header">
+            <h1>📊 Management Reports Dashboard</h1>
+            <p>Comprehensive analytics and insights for flight operations</p>
+        </div>
+        
+        <div class="dashboard-grid">
+            <!-- Report 5: Plane Activity Dashboard - Full width at top -->
+            <div class="dashboard-card full-width-card">
+                <div class="card-header">
+                    <h3 class="card-title">Plane Activity Dashboard</h3>
+                    <span class="card-icon">✈️</span>
+                </div>
+                <div class="card-content">
+                    <p>Monthly activity summary for the entire fleet</p>
+                    {% if charts and charts.get('plane_activity') %}
+                    <div class="chart-container">
+                        <img src="{{ url_for('static', filename=charts.plane_activity) }}" alt="Plane Activity Dashboard" style="width: 100%; height: auto;">
+                    </div>
+                    {% else %}
+                    <div class="no-data">No plane activity data available</div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Report 1: Average Tickets -->
+            <div class="dashboard-card stat-card">
+                <div class="card-header" style="justify-content: center;">
+                    <h3 class="card-title" style="margin: 0;">Average Tickets</h3>
+                </div>
+                <div class="card-content">
+                    <span class="ticket-icon">🎟️</span>
+                    <div class="stat-value">{{ "%.2f"|format(avg_tickets) if avg_tickets else "0.00" }}</div>
+                    <div class="stat-label">Per Landed Flight</div>
+                </div>
+            </div>
+            
+            <!-- Report 4: Cancellation Rate -->
+            <div class="dashboard-card medium-card">
+                <div class="card-header">
+                    <h3 class="card-title">Cancellation Rate</h3>
+                    <span class="card-icon">📉</span>
+                </div>
+                <div class="card-content">
+                    <p>Percentage of cancelled orders by month</p>
+                    {% if charts and charts.get('cancellation_rates') %}
+                    <div class="chart-container">
+                        <img src="{{ url_for('static', filename=charts.cancellation_rates) }}" alt="Cancellation Rate Chart">
+                    </div>
+                    {% else %}
+                    <div class="no-data">No cancellation rate data available</div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Report 2: Revenue by Class -->
+            <div class="dashboard-card large-card">
+                <div class="card-header">
+                    <h3 class="card-title">Revenue by Class</h3>
+                    <span class="card-icon">💰</span>
+                </div>
+                <div class="card-content">
+                    <p>Revenue breakdown by manufacturer, plane size, and class</p>
+                    {% if revenue_by_class %}
+                    <div class="table-container">
+                        <table class="report-table">
+                            <thead>
+                                <tr>
+                                    <th>Manufacturer</th>
+                                    <th>Plane Size</th>
+                                    <th>Class</th>
+                                    <th>Total Revenue</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in revenue_by_class %}
+                                <tr>
+                                    <td>{{ row[0] }}</td>
+                                    <td>{{ row[1] }}</td>
+                                    <td>{{ row[2] }}</td>
+                                    <td>${{ "%.2f"|format(row[3]) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="no-data">No revenue data available</div>
+                    {% endif %}
+                    {% if charts and charts.get('revenue_by_class') %}
+                    <div class="chart-container">
+                        <img src="{{ url_for('static', filename=charts.revenue_by_class) }}" alt="Revenue Chart">
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Report 3: Employee Flight Hours -->
+            <div class="dashboard-card full-width-card">
+                <div class="card-header">
+                    <h3 class="card-title">Employee Flight Hours</h3>
+                    <span class="card-icon">👥</span>
+                </div>
+                <div class="card-content">
+                    <p>Cumulative flight hours for pilots and attendants by flight length</p>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1rem;">
+                        <!-- Pilots Table -->
+                        <div>
+                            <h4 style="margin-top: 0; margin-bottom: 1rem; color: #1e293b;">Pilots</h4>
+                            {% if pilots_hours %}
+                            <div class="table-container">
+                                <table class="report-table">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>First Name</th>
+                                            <th>Last Name</th>
+                                            <th>Short Hours</th>
+                                            <th>Long Hours</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for row in pilots_hours %}
+                                        <tr>
+                                            <td>{{ row[0] }}</td>
+                                            <td>{{ row[1] }}</td>
+                                            <td>{{ row[2] }}</td>
+                                            <td>{{ "%.2f"|format(row[3]) if row[3] else "0.00" }}</td>
+                                            <td>{{ "%.2f"|format(row[4]) if row[4] else "0.00" }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="no-data">No pilots flight hours data available</div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Attendants Table -->
+                        <div>
+                            <h4 style="margin-top: 0; margin-bottom: 1rem; color: #1e293b;">Attendants</h4>
+                            {% if attendants_hours %}
+                            <div class="table-container">
+                                <table class="report-table">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>First Name</th>
+                                            <th>Last Name</th>
+                                            <th>Short Hours</th>
+                                            <th>Long Hours</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for row in attendants_hours %}
+                                        <tr>
+                                            <td>{{ row[0] }}</td>
+                                            <td>{{ row[1] }}</td>
+                                            <td>{{ row[2] }}</td>
+                                            <td>{{ "%.2f"|format(row[3]) if row[3] else "0.00" }}</td>
+                                            <td>{{ "%.2f"|format(row[4]) if row[4] else "0.00" }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="no-data">No attendants flight hours data available</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+</body>
+</html>

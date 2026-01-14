@@ -118,8 +118,8 @@
         }
         
         .legend-seat.selected {
-            background: #667eea;
-            border-color: #667eea;
+            background: #e76f51;
+            border-color: #e76f51;
         }
         
         .legend-seat.booked {
@@ -194,8 +194,8 @@
         }
         
         .seat.selected {
-            background: #667eea;
-            border-color: #667eea;
+            background: #e76f51;
+            border-color: #e76f51;
             color: white;
         }
         
@@ -233,8 +233,8 @@
         
         /* Style the label when checkbox is checked - using :has() for modern browsers */
         .seat:has(input[type="checkbox"]:checked):not(.booked) {
-            background: #667eea !important;
-            border-color: #667eea !important;
+            background: #e76f51 !important;
+            border-color: #e76f51 !important;
             color: white !important;
             transform: scale(1.08);
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.4), 0 4px 8px rgba(102, 126, 234, 0.3);
@@ -303,7 +303,7 @@
         .total-price {
             font-size: 1.5rem;
             font-weight: 700;
-            color: #667eea;
+            color: #e76f51;
             margin-top: 1rem;
             padding-top: 1rem;
             border-top: 2px solid #e2e8f0;
@@ -312,7 +312,7 @@
         .book-btn {
             width: 100%;
             padding: 1rem;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #f4a261 0%, #e76f51 100%);
             color: white;
             border: none;
             border-radius: 0.75rem;
@@ -354,7 +354,7 @@
         .back-link {
             display: inline-block;
             margin-bottom: 1rem;
-            color: #667eea;
+            color: #e76f51;
             text-decoration: none;
             font-weight: 600;
         }
@@ -368,15 +368,15 @@
     {% if session.get('user_type') %}
     <div style="position: fixed; top: 20px; right: 20px; z-index: 1000; display: flex; gap: 0.5rem;">
         {% if session.get('user_type') == 'user' %}
-        <a href="/my_orders" style="background-color: #2563eb; color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+        <a href="/my_orders" style="background-color: #60a5fa; color: white; padding: 0.4rem 0.8rem; border-radius: 0.4rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
             My Orders
         </a>
         {% elif session.get('user_type') == 'guest' %}
-        <a href="/manage_orders" style="background-color: #2563eb; color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+        <a href="/manage_orders" style="background-color: #60a5fa; color: white; padding: 0.4rem 0.8rem; border-radius: 0.4rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
             Manage Orders
         </a>
         {% endif %}
-        <a href="/logout" style="background-color: #ef4444; color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+        <a href="/logout" style="background-color: #ef4444; color: white; padding: 0.4rem 0.8rem; border-radius: 0.4rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
             Logout
         </a>
     </div>

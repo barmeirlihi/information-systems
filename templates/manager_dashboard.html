@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manager Dashboard - FlyTau</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        .dashboard-actions {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .action-btn {
+            padding: 0.75rem 1.5rem;
+            background-color: #669bbc;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .action-btn:hover {
+            background-color: #356789;
+        }
+        .action-btn.secondary {
+            background-color: #64748b;
+        }
+        .action-btn.secondary:hover {
+            background-color: #475569;
+        }
+        .flights-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        .flights-table th,
+        .flights-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .flights-table th {
+            background-color: #f8fafc;
+            font-weight: 600;
+            color: #334155;
+        }
+        .flights-table tr:hover {
+            background-color: #f8fafc;
+        }
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+        .status-active {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+        .status-cancelled {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+        .cancel-btn {
+            padding: 0.5rem 1rem;
+            background-color: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .cancel-btn:hover {
+            background-color: #dc2626;
+        }
+        .cancel-btn:disabled {
+            background-color: #94a3b8;
+            cursor: not-allowed;
+        }
+        .info-message {
+            background-color: #dbeafe;
+            color: #1e40af;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .error-message {
+            background-color: #fee2e2;
+            color: #991b1b;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .success-message {
+            background-color: #d1fae5;
+            color: #065f46;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body class="centered-page">
+
+    {% if session.get('user_type') %}
+    <div style="position: fixed; top: 20px; right: 20px; z-index: 1000;">
+        <a href="/logout" style="background-color: #ef4444; color: white; padding: 0.4rem 0.8rem; border-radius: 0.4rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+            Logout
+        </a>
+    </div>
+    {% endif %}
+
+    <div class="card" style="max-width: 1400px;">
+        <div style="text-align: center; margin-bottom: 2.5rem;">
+            <div class="icon-circle" style="background-color: #f1f5f9;">🛡️</div>
+            <h2 style="font-weight: 900; font-size: 1.8rem; letter-spacing: -1px; text-transform: uppercase;">Manager Dashboard</h2>
+            <p style="font-size: 0.8rem; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; color: #94a3b8;">
+                Flight Management System
+            </p>
+        </div>
+
+        {% if error %}
+        <div class="error-message">
+            {{ error }}
+        </div>
+        {% endif %}
+
+        {% if success %}
+        <div class="success-message">
+            {{ success }}
+        </div>
+        {% endif %}
+
+        <div class="dashboard-header">
+            <h3 style="margin: 0;">All Flights</h3>
+            <div class="dashboard-actions">
+                <a href="/flights_management" class="action-btn">Add New Flight</a>
+                <a href="/manager/reports" class="action-btn secondary">Management Reports</a>
+            </div>
+        </div>
+
+        {% if flights %}
+        <table class="flights-table">
+            <thead>
+                <tr>
+                    <th>Flight ID</th>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Route</th>
+                    <th>Plane</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for flight in flights %}
+                <tr>
+                    <td><strong>{{ flight[0] }}</strong></td>
+                    <td>{{ flight[2] }}</td>
+                    <td>{{ flight[1] }}</td>
+                    <td>
+                        {{ flight[3] }} ({{ flight[7] }}) → {{ flight[4] }} ({{ flight[9] }})
+                    </td>
+                    <td>{{ flight[5] }}</td>
+                    <td>
+                        <span class="status-badge {% if flight[6] == 'Active' %}status-active{% else %}status-cancelled{% endif %}">
+                            {{ flight[6] }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if flight[6] == 'Active' and flight[11] == 1 %}
+                        <a href="/manager/confirm_cancel_flight/{{ flight[0] }}" class="cancel-btn" style="text-decoration: none; display: inline-block;">Cancel Flight</a>
+                        {% elif flight[6] == 'Active' and flight[11] == 0 %}
+                        <button class="cancel-btn" disabled title="Cannot cancel flight less than 72 hours before departure">Cancel Flight</button>
+                        {% else %}
+                        <button class="cancel-btn" disabled>Cancelled</button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="info-message">
+            No flights found in the system.
+        </div>
+        {% endif %}
+
+        <div style="text-align: center; margin-top: 2.5rem;">
+            <a href="/" style="font-size: 0.75rem; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; color: #94a3b8; text-decoration: none;">
+                &larr; Back to Homepage
+            </a>
+        </div>
+    </div>
+
+</body>
+</html>
+

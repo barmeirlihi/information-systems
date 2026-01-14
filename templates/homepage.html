@@ -11,21 +11,25 @@
     {% if session.get('user_type') %}
     <div style="position: fixed; top: 20px; right: 20px; z-index: 1000; display: flex; gap: 0.5rem;">
         {% if session.get('user_type') == 'user' %}
-        <a href="/my_orders" style="background-color: #457b9d; color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+        <a href="/my_orders" style="background-color: #60a5fa; color: white; padding: 0.4rem 0.8rem; border-radius: 0.4rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
             My Orders
         </a>
         {% elif session.get('user_type') == 'guest' %}
-        <a href="/manage_orders" style="background-color: #457b9d; color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+        <a href="/manage_orders" style="background-color: #60a5fa; color: white; padding: 0.4rem 0.8rem; border-radius: 0.4rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
             Manage Orders
         </a>
+        {% elif session.get('user_type') == 'manager' %}
+        <a href="/manager/dashboard" style="background-color: #60a5fa; color: white; padding: 0.4rem 0.8rem; border-radius: 0.4rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+            Manager Dashboard
+        </a>
         {% endif %}
-        <a href="/logout" style="background-color: #e63946; color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+        <a href="/logout" style="background-color: #ef4444; color: white; padding: 0.4rem 0.8rem; border-radius: 0.4rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
             Logout
         </a>
     </div>
     {% endif %}
 
-    <div class="hero" style="background-image: url('{{ url_for('static', filename='images/13DA658A-E61D-4885-BEB7-A6FDA5EB74EB.PNG') }}');">
+    <div class="hero" style="background: linear-gradient(135deg, #f4a261 0%, #e76f51 100%); background-image: url('{{ url_for('static', filename='images/13DA658A-E61D-4885-BEB7-A6FDA5EB74EB.PNG') }}'); background-blend-mode: overlay;">
         <div class="hero-content">
             <h1 class="hero-title">
                 YOUR JOURNEY <br>
@@ -35,10 +39,15 @@
                 FlyTau connects you to the world with the comfort and reliability you deserve.
             </p>
 
-            {% if session.get('user_email') %}
+            {% if session.get('user_email') and session.get('user_type') != 'manager' %}
                 <div>
                     <a href="/book_flights" class="btn btn-hero">Start Booking Now &rarr;</a>
                     <p class="welcome-back-text">Welcome Back</p>
+                </div>
+            {% elif session.get('user_type') == 'manager' %}
+                <div>
+                    <a href="/manager/dashboard" class="btn btn-hero">Go to Dashboard &rarr;</a>
+                    <p class="welcome-back-text">Welcome Manager</p>
                 </div>
             {% endif %}
         </div>
@@ -55,27 +64,21 @@
 
             <a href="/login" class="card-link">
                 <div class="card card-hover theme-blue">
-                    <div class="icon-circle">🔑</div>
                     <h3>Member</h3>
-                    <p>Login to access your saved passport details and 5% cancellation fee policy.</p>
                     <span class="link-text">Log in &rarr;</span>
                 </div>
             </a>
 
             <a href="/sign_up" class="card-link">
                 <div class="card card-hover theme-green">
-                    <div class="icon-circle">✨</div>
                     <h3>New User</h3>
-                    <p>Register today to start earning university points and enjoy faster checkouts.</p>
                     <span class="link-text">Register &rarr;</span>
                 </div>
             </a>
 
             <a href="/guest" class="card-link">
                 <div class="card card-hover theme-slate">
-                    <div class="icon-circle">👤</div>
                     <h3>Guest</h3>
-                    <p>No account? No problem. Provide basic info to search and book flights instantly.</p>
                     <span class="link-text">Proceed &rarr;</span>
                 </div>
             </a>
@@ -85,7 +88,7 @@
         <div class="manager-section">
             <p class="section-subtitle" style="margin-bottom: 10px;">Internal Staff Use Only</p>
             <a href="/manager" class="btn btn-dark" style="width: auto;">
-                🛡️ Manager Access
+                Manager Access
             </a>
         </div>
     </section>

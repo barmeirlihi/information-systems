@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Details - FlyTau</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .order-card {
+            background: white;
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
+        .status-active {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+        .status-completed {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+        .status-cancelled-customer {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+        .status-cancelled-system {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .info-label {
+            font-weight: 600;
+            color: #64748b;
+        }
+        .info-value {
+            font-weight: 700;
+            color: #1e293b;
+        }
+        .cancel-btn {
+            background-color: #ef4444;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 1rem;
+        }
+        .cancel-btn:hover {
+            background-color: #dc2626;
+        }
+        .cancel-btn:disabled {
+            background-color: #94a3b8;
+            cursor: not-allowed;
+        }
+        .cancellation-fee {
+            background-color: #fef3c7;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+            border-left: 4px solid #f59e0b;
+        }
+        .alert-box {
+            background-color: #fef2f2;
+            border-left: 4px solid #ef4444;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+            color: #991b1b;
+        }
+    </style>
+</head>
+<body class="centered-page">
+    {% if session.get('user_type') %}
+    <div style="position: fixed; top: 20px; right: 20px; z-index: 1000; display: flex; gap: 0.5rem;">
+        {% if session.get('user_type') == 'user' %}
+        <a href="/my_orders" style="background-color: #60a5fa; color: white; padding: 0.4rem 0.8rem; border-radius: 0.4rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+            My Orders
+        </a>
+        {% elif session.get('user_type') == 'guest' %}
+        <a href="/manage_orders" style="background-color: #60a5fa; color: white; padding: 0.4rem 0.8rem; border-radius: 0.4rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+            Manage Orders
+        </a>
+        {% endif %}
+        <a href="/logout" style="background-color: #ef4444; color: white; padding: 0.4rem 0.8rem; border-radius: 0.4rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+            Logout
+        </a>
+    </div>
+    {% endif %}
+
+    <div class="card card-extra-round" style="max-width: 800px;">
+        <div class="header-section">
+            <div class="icon-circle" style="background-color: #eff6ff; color: #60a5fa;">
+                ✈️
+            </div>
+            <h2 style="font-weight: 900; font-size: 1.875rem;">Order Details #{{ order.order_id }}</h2>
+        </div>
+
+        {% if cancelled %}
+        <div class="alert-box">
+            <strong>Order cancelled successfully!</strong><br>
+            Cancellation Fee: ${{ "%.2f"|format(cancellation_fee) }}
+        </div>
+        {% endif %}
+
+        <div class="order-card">
+            <div>
+                {% if display_status == 'Active' %}
+                    <span class="status-badge status-active">{{ display_status }}</span>
+                {% elif display_status == 'Completed' %}
+                    <span class="status-badge status-completed">{{ display_status }}</span>
+                {% elif display_status == 'Cancelled' or display_status == 'Cancelled by Customer' %}
+                    <span class="status-badge status-cancelled-customer">{{ display_status }}</span>
+                {% elif display_status == 'Cancelled by System' %}
+                    <span class="status-badge status-cancelled-system">{{ display_status }}</span>
+                {% else %}
+                    <span class="status-badge">{{ display_status }}</span>
+                {% endif %}
+            </div>
+
+            {% if order.flight %}
+            <div class="info-row">
+                <span class="info-label">Flight:</span>
+                <span class="info-value">{{ order.flight.origin_airport }} → {{ order.flight.destination_airport }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Flight Date:</span>
+                <span class="info-value">{{ order.flight.departure_date }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Departure Time:</span>
+                <span class="info-value">{{ order.flight.departure_time }}</span>
+            </div>
+            {% if order.selected_seats %}
+            <div class="info-row">
+                <span class="info-label">Seats:</span>
+                <span class="info-value">{{ order.selected_seats|join(', ') }}</span>
+            </div>
+            {% endif %}
+            {% endif %}
+
+            <div class="info-row">
+                <span class="info-label">Order Date:</span>
+                <span class="info-value">{{ order.order_date }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Original Price:</span>
+                <span class="info-value">${{ "%.2f"|format(order.total_payment) }}</span>
+            </div>
+
+            {% if display_status == 'Cancelled' or display_status == 'Cancelled by Customer' %}
+            <div class="cancellation-fee">
+                <strong>Cancellation Fee:</strong> ${{ "%.2f"|format(cancellation_fee) }} (5% of total payment)
+            </div>
+            {% elif display_status == 'Cancelled by System' %}
+            <div class="info-row">
+                <span class="info-label">Final Price:</span>
+                <span class="info-value">$0.00</span>
+            </div>
+            {% else %}
+            <div class="info-row">
+                <span class="info-label">Final Price:</span>
+                <span class="info-value">${{ "%.2f"|format(final_price) }}</span>
+            </div>
+            {% endif %}
+
+            {% if display_status == 'Active' and not cancelled %}
+            <div class="cancellation-fee">
+                <strong>Note:</strong> Cancelling the order will incur a cancellation fee of 5% of total payment (${{ "%.2f"|format(cancellation_fee) }}). Order can only be cancelled at least 36 hours before departure.
+            </div>
+            <a href="/confirm_cancel/{{ order.order_id }}" class="cancel-btn" style="text-decoration: none; display: inline-block;">Cancel Order</a>
+            {% endif %}
+        </div>
+
+        <div style="margin-top: 2rem; text-align: center;">
+            {% if is_guest %}
+                <a href="/manage_orders" class="link-primary">Back to Order Search</a>
+            {% else %}
+                <a href="/my_orders" class="link-primary">Back to My Orders</a>
+            {% endif %}
+            <br>
+            <a href="/" class="link-primary" style="margin-top: 1rem; display: inline-block;">Back to Homepage</a>
+        </div>
+    </div>
+
+</body>
+</html>
+
