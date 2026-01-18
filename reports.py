@@ -206,15 +206,24 @@ def create_charts(reports_data):
         colors = []
         for col in df_pivot.columns:
             if col == 'Economy':
-                colors.append('#ffc857')  # Golden pollen for Economy
+                colors.append('#EA7B7B')  # Economy color
             else:
-                colors.append('#255f85')  # Baltic blue for Business
+                colors.append('#9E3B3B')  # Business color
         ax = df_pivot.plot(kind='bar', ax=plt.gca(), width=0.8, color=colors[:len(df_pivot.columns)])
-        plt.xlabel('Manufacturer & Plane Size', fontsize=12)
-        plt.ylabel('Total Revenue ($)', fontsize=12)
-        plt.title('Revenue by Manufacturer, Plane Size, and Class', fontsize=14, fontweight='bold')
-        plt.legend(title='Class', fontsize=10)
+        plt.xlabel('Manufacturer & Plane Size', fontsize=12, fontfamily='DejaVu Sans', fontweight='bold')
+        plt.ylabel('Total Revenue ($)', fontsize=12, fontfamily='DejaVu Sans', fontweight='bold')
+        plt.title('Revenue by Manufacturer, Plane Size, and Class', fontsize=14, fontweight='bold', fontfamily='DejaVu Sans')
+        legend = plt.legend(title='Class', fontsize=10)
+        legend.get_title().set_fontfamily('DejaVu Sans')
+        for text in legend.get_texts():
+            text.set_fontfamily('DejaVu Sans')
         plt.xticks(rotation=0, ha='center')  # Horizontal alignment, centered
+        # Set font for all tick labels
+        ax = plt.gca()
+        for label in ax.get_xticklabels():
+            label.set_fontfamily('DejaVu Sans')
+        for label in ax.get_yticklabels():
+            label.set_fontfamily('DejaVu Sans')
         plt.grid(axis='y', alpha=0.3)
         chart_path = f"{charts_dir}/chart2_revenue.png"
         plt.savefig(chart_path, dpi=100, bbox_inches='tight')
@@ -249,16 +258,16 @@ def create_charts(reports_data):
         else:
             df_complete = df
         
-        plt.figure(figsize=(14, 7))
+        plt.figure(figsize=(14, 4))
         # Draw vertical lines from points to X-axis
         for date, rate in zip(df_complete['Date'], df_complete['Cancellation_Rate_Percent']):
             plt.plot([date, date], [0, rate], color='#c5283d', alpha=0.3, linewidth=0.8, linestyle='--', zorder=1)
         # Plot points
         plt.scatter(df_complete['Date'], df_complete['Cancellation_Rate_Percent'], 
                    s=80, color='#c5283d', marker='o', edgecolors='white', linewidths=2, zorder=3)
-        plt.xlabel('Date', fontsize=12, fontweight='bold')
-        plt.ylabel('Cancellation Rate (%)', fontsize=12, fontweight='bold')
-        plt.title('Cancellation Rate by Month', fontsize=14, fontweight='bold')
+        plt.xlabel('Date', fontsize=12, fontweight='bold', fontfamily='DejaVu Sans')
+        plt.ylabel('Cancellation Rate (%)', fontsize=12, fontweight='bold', fontfamily='DejaVu Sans')
+        plt.title('Cancellation Rate by Month', fontsize=14, fontweight='bold', fontfamily='DejaVu Sans')
         plt.grid(alpha=0.3, linestyle='--', linewidth=0.8)
         plt.ylim(bottom=0)
         # Format x-axis to show year-month
@@ -268,6 +277,11 @@ def create_charts(reports_data):
         ax.xaxis.set_major_locator(MonthLocator(interval=1))
         ax.xaxis.set_major_formatter(DateFormatter('%Y-%m'))
         plt.xticks(rotation=45, ha='right')
+        # Set font for all tick labels
+        for label in ax.get_xticklabels():
+            label.set_fontfamily('DejaVu Sans')
+        for label in ax.get_yticklabels():
+            label.set_fontfamily('DejaVu Sans')
         plt.tight_layout()
         chart_path = f"{charts_dir}/chart4_cancellation_rate.png"
         plt.savefig(chart_path, dpi=100, bbox_inches='tight')
@@ -294,12 +308,12 @@ def create_charts(reports_data):
         
         df_agg = df_agg.sort_values('Plane_ID')
         
-        # Create dashboard with 3 subplots - larger size
-        fig = plt.figure(figsize=(22, 16))
-        gs = fig.add_gridspec(2, 2, height_ratios=[2.5, 1.2], width_ratios=[2.2, 1], hspace=0.4, wspace=0.5)
+        # Create dashboard with 3 subplots - proportional sizes
+        fig = plt.figure(figsize=(24, 8))
+        gs = fig.add_gridspec(1, 3, width_ratios=[1.2, 1.2, 1.6], wspace=0.4)  # Enlarged right graph and shifted left
         
         # 1. Grouped vertical bar chart for flights (Plane ID on X-axis)
-        ax1 = fig.add_subplot(gs[0, :])
+        ax1 = fig.add_subplot(gs[0, 0])
         planes = df_agg['Plane_ID'].astype(str)
         executed = df_agg['Flights_Executed'].astype(int)
         cancelled = df_agg['Flights_Cancelled'].astype(int)
@@ -309,29 +323,37 @@ def create_charts(reports_data):
         x1 = [x - width/2 for x in x_pos]
         x2 = [x + width/2 for x in x_pos]
         
-        ax1.bar(x1, executed, width, label='Flights Executed', color='#ffc857', edgecolor='black', linewidth=0.5)
-        ax1.bar(x2, cancelled, width, label='Flights Cancelled', color='#c5283d', edgecolor='black', linewidth=0.5)
+        ax1.bar(x1, executed, width, label='Flights Executed', color='#215E61', edgecolor='black', linewidth=0.5)
+        ax1.bar(x2, cancelled, width, label='Flights Cancelled', color='#9E2A3A', edgecolor='black', linewidth=0.5)
         
         ax1.set_xticks(x_pos)
-        ax1.set_xticklabels(planes)
-        ax1.set_xlabel('Plane ID', fontsize=12, fontweight='bold')
-        ax1.set_ylabel('Number of Flights', fontsize=12, fontweight='bold')
-        ax1.set_title('Monthly Flight Activity by Plane', fontsize=14, fontweight='bold')
-        ax1.legend(loc='upper right', fontsize=10)
+        ax1.set_xticklabels(planes, fontfamily='DejaVu Sans')
+        ax1.set_xlabel('Plane ID', fontsize=12, fontweight='bold', fontfamily='DejaVu Sans')
+        ax1.set_ylabel('Number of Flights', fontsize=12, fontweight='bold', fontfamily='DejaVu Sans')
+        ax1.set_title('Monthly Flight Activity by Plane', fontsize=14, fontweight='bold', fontfamily='DejaVu Sans', pad=15)
+        legend1 = ax1.legend(loc='upper right', fontsize=10)
+        legend1.get_frame().set_facecolor('white')
+        for text in legend1.get_texts():
+            text.set_fontfamily('DejaVu Sans')
         ax1.grid(axis='y', alpha=0.3, linestyle='--')
         # Set Y-axis to show only integers
         ax1.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
+        # Set font for all tick labels
+        for label in ax1.get_xticklabels():
+            label.set_fontfamily('DejaVu Sans')
+        for label in ax1.get_yticklabels():
+            label.set_fontfamily('DejaVu Sans')
         
         # 2. Utilization visualization (vertical bars, Plane ID on X-axis)
-        ax2 = fig.add_subplot(gs[1, 0])
+        ax2 = fig.add_subplot(gs[0, 1])
         utilization = df_agg['Utilization_Percent'].clip(0, 100)
         
-        # Determine max utilization for better scaling
-        max_util = max(utilization.max(), 10) if len(utilization) > 0 else 100
-        y_max = min(max_util * 1.2, 100)  # Add 20% padding but cap at 100
+        # Determine max utilization for better scaling - cap at 4%
+        max_util = max(utilization.max(), 0.1) if len(utilization) > 0 else 4
+        y_max = min(max_util * 1.2, 4)  # Add 20% padding but cap at 4%
         
         # Create vertical bar chart for utilization - New palette
-        colors_util = ['#ffc857' if u >= 50 else '#e9724c' if u >= 25 else '#c5283d' for u in utilization]
+        colors_util = ['#ffc857' if u >= 50 else '#e9724c' if u >= 25 else '#ABDADC' for u in utilization]
         bars = ax2.bar(x_pos, utilization, color=colors_util, width=0.6, edgecolor='black', linewidth=0.5)
         
         # Add percentage labels on bars (always visible)
@@ -339,61 +361,70 @@ def create_charts(reports_data):
             height = bar.get_height()
             label_y = height + (y_max * 0.02)  # 2% of max above bar
             ax2.text(bar.get_x() + bar.get_width()/2, label_y, 
-                    f'{util:.2f}%', ha='center', va='bottom', fontsize=10, fontweight='bold')
+                    f'{util:.2f}%', ha='center', va='bottom', fontsize=10, fontweight='bold', fontfamily='DejaVu Sans')
         
         ax2.set_xticks(x_pos)
-        ax2.set_xticklabels(planes)
-        ax2.set_xlabel('Plane ID', fontsize=12, fontweight='bold')
-        ax2.set_ylabel('Utilization (%)', fontsize=12, fontweight='bold')
-        ax2.set_title('Monthly Utilization Rate', fontsize=13, fontweight='bold')
+        ax2.set_xticklabels(planes, fontfamily='DejaVu Sans')
+        ax2.set_xlabel('Plane ID', fontsize=12, fontweight='bold', fontfamily='DejaVu Sans')
+        ax2.set_ylabel('Utilization (%)', fontsize=12, fontweight='bold', fontfamily='DejaVu Sans')
+        ax2.set_title('Monthly Utilization Rate', fontsize=14, fontweight='bold', fontfamily='DejaVu Sans', pad=15)
         ax2.set_ylim(0, y_max)
         ax2.grid(axis='y', alpha=0.3, linestyle='--')
-        
-        # Add reference lines only if they're within the visible range
-        if y_max >= 50:
-            ax2.axhline(y=50, color='gray', linestyle=':', alpha=0.5, linewidth=1, label='50%')
-        if y_max >= 75:
-            ax2.axhline(y=75, color='gray', linestyle=':', alpha=0.5, linewidth=1, label='75%')
+        # Set font for all tick labels
+        for label in ax2.get_xticklabels():
+            label.set_fontfamily('DejaVu Sans')
+        for label in ax2.get_yticklabels():
+            label.set_fontfamily('DejaVu Sans')
         
         # 3. Dominant routes table (text visualization)
-        ax3 = fig.add_subplot(gs[1, 1])
+        ax3 = fig.add_subplot(gs[0, 2])
         ax3.axis('off')
-        ax3.set_title('Dominant Routes', fontsize=13, fontweight='bold', pad=10)
+        ax3.set_title('Dominant Routes', fontsize=14, fontweight='bold', pad=15, fontfamily='DejaVu Sans')  # Same font and pad as other titles
         
-        # Create table data
+        # Create table data - only planes with valid routes (no N/A)
         table_data = []
         for _, row in df_agg.iterrows():
             route = row['Dominant_Route']
-            # Check if route is valid (not NaN, not None, not empty string)
-            if pd.isna(route) or route is None or route == '' or route == 'NULL' or str(route).strip() == '':
-                route = 'N/A'
-            else:
+            # Only include planes with valid routes (not NaN, not None, not empty string, not NULL)
+            if not (pd.isna(route) or route is None or route == '' or route == 'NULL' or str(route).strip() == ''):
                 route = str(route).strip()
-            table_data.append([f"Plane {row['Plane_ID']}", route])
+                table_data.append([f"Plane {row['Plane_ID']}", route])
         
-        # Create table - larger
-        table = ax3.table(cellText=table_data,
-                         colLabels=['Plane', 'Route'],
-                         cellLoc='left',
-                         loc='center',
-                         colWidths=[0.25, 0.75])
-        table.auto_set_font_size(False)
-        table.set_fontsize(11)
-        table.scale(1, 2.5)
+        # Only create table if there's data
+        if table_data:
+            # Create table - improved design with centered text and shifted left
+            table = ax3.table(cellText=table_data,
+                             colLabels=['Plane', 'Route'],
+                             cellLoc='center',  # Changed from 'left' to 'center'
+                             loc='center',
+                             bbox=[0.05, 0, 0.9, 1])  # Shifted left: [left, bottom, width, height] - left margin 0.05, width 0.9 leaves right margin
+            table.auto_set_font_size(False)
+            table.set_fontsize(16)
+            table.scale(1, 3.2)
+            
+            # Style table with improved design
+            for i in range(len(table_data) + 1):
+                for j in range(2):
+                    cell = table[(i, j)]
+                    if i == 0:  # Header
+                        cell.set_facecolor('#3F9AAE')  # Blue color
+                        cell.set_text_props(weight='bold', color='white', size=17, family='DejaVu Sans')  # Same font as main titles
+                        cell.set_height(0.1)
+                    else:
+                        # Alternating row colors for better readability
+                        bg_color = '#f8fafc' if i % 2 == 0 else 'white'
+                        cell.set_facecolor(bg_color)
+                        cell.set_text_props(size=15, weight='bold', family='DejaVu Sans')  # Same font as main titles
+                        cell.set_height(0.09)
+                    # Better borders
+                    cell.set_edgecolor('#cbd5e1')
+                    cell.set_linewidth(1.2)
+        else:
+            # No data message
+            ax3.text(0.5, 0.5, 'No route data available', 
+                    ha='center', va='center', fontsize=16, color='#64748b', style='italic', weight='bold', family='DejaVu Sans')  # Same font
         
-        # Style table
-        for i in range(len(table_data) + 1):
-            for j in range(2):
-                cell = table[(i, j)]
-                if i == 0:  # Header
-                    cell.set_facecolor('#255f85')
-                    cell.set_text_props(weight='bold', color='white')
-                else:
-                    cell.set_facecolor('#f8f9fa' if i % 2 == 0 else 'white')
-                cell.set_edgecolor('#dee2e6')
-                cell.set_height(0.08)
-        
-        plt.suptitle('Monthly Plane Activity Dashboard', fontsize=16, fontweight='bold', y=0.98)
+        plt.suptitle('Monthly Plane Activity Dashboard', fontsize=16, fontweight='bold', y=0.98, fontfamily='DejaVu Sans')
         
         chart_path = f"{charts_dir}/chart5_plane_activity.png"
         plt.savefig(chart_path, dpi=100, bbox_inches='tight')
@@ -401,6 +432,55 @@ def create_charts(reports_data):
         charts['plane_activity'] = chart_path.replace('static/', '')
     
     return charts
+
+
+def get_total_orders():
+    """
+    Returns the total number of orders
+    """
+    query = """
+        SELECT COUNT(*) as total_orders
+        FROM Orders
+    """
+    try:
+        result = data.sql_query(query)
+        return result[0][0] if result and result[0][0] is not None else 0
+    except Exception as e:
+        print(f"Error in get_total_orders: {str(e)}")
+        return 0
+
+
+def get_active_flights():
+    """
+    Returns the total number of active flights
+    """
+    query = """
+        SELECT COUNT(*) as active_flights
+        FROM Flights
+        WHERE status = 'Active'
+    """
+    try:
+        result = data.sql_query(query)
+        return result[0][0] if result and result[0][0] is not None else 0
+    except Exception as e:
+        print(f"Error in get_active_flights: {str(e)}")
+        return 0
+
+
+def get_total_passengers():
+    """
+    Returns the total number of passengers (tickets sold)
+    """
+    query = """
+        SELECT COUNT(*) as total_passengers
+        FROM FlightTickets
+    """
+    try:
+        result = data.sql_query(query)
+        return result[0][0] if result and result[0][0] is not None else 0
+    except Exception as e:
+        print(f"Error in get_total_passengers: {str(e)}")
+        return 0
 
 
 def get_all_reports():
@@ -412,6 +492,9 @@ def get_all_reports():
         'revenue_by_class': get_revenue_by_class(),
         'employee_hours': get_employee_flight_hours(),
         'cancellation_rates': get_cancellation_rate_by_month(),
-        'plane_activity': get_plane_monthly_activity()
+        'plane_activity': get_plane_monthly_activity(),
+        'total_orders': get_total_orders(),
+        'active_flights': get_active_flights(),
+        'total_passengers': get_total_passengers()
     }
 

@@ -465,8 +465,10 @@
                             {% for row_num in business_rows|sort %}
                             <div class="seat-row">
                                 <div class="row-number">{{ row_num }}</div>
+                                {% set total_seats = seats_by_row[row_num]|length %}
+                                {% set mid_point = (total_seats // 2) + 1 %}
                                 {% for seat in seats_by_row[row_num] %}
-                                    {% if seat['column'] == 3 %}
+                                    {% if seat['column'] == mid_point %}
                                         <div class="aisle"></div>
                                     {% endif %}
                                     <label class="seat {% if seat['booked'] or (seat['class'] == 'Business' and price_business is none) %}booked{% elif seat['class'] == 'Business' %}available-business{% else %}available-economy{% endif %}">
@@ -489,8 +491,10 @@
                             {% for row_num in economy_rows|sort %}
                             <div class="seat-row">
                                 <div class="row-number">{{ row_num }}</div>
+                                {% set total_seats = seats_by_row[row_num]|length %}
+                                {% set mid_point = (total_seats // 2) + 1 %}
                                 {% for seat in seats_by_row[row_num] %}
-                                    {% if seat['column'] == 4 %}
+                                    {% if seat['column'] == mid_point %}
                                         <div class="aisle"></div>
                                     {% endif %}
                                     <label class="seat {% if seat['booked'] or (seat['class'] == 'Business' and price_business is none) %}booked{% elif seat['class'] == 'Business' %}available-business{% else %}available-economy{% endif %}">
