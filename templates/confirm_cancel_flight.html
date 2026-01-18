@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirm Flight Cancellation - FlyTau</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .warning-box {
+            background-color: #fef3c7;
+            border: 2px solid #f59e0b;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .warning-box h3 {
+            color: #92400e;
+            margin-top: 0;
+        }
+        .flight-details {
+            background-color: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .flight-details p {
+            margin: 0.5rem 0;
+            color: #334155;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+        .btn-confirm {
+            padding: 0.75rem 2rem;
+            background-color: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .btn-confirm:hover {
+            background-color: #dc2626;
+        }
+        .btn-cancel {
+            padding: 0.75rem 2rem;
+            background-color: #64748b;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn-cancel:hover {
+            background-color: #475569;
+        }
+    </style>
+</head>
+<body class="centered-page">
+
+    {% if session.get('user_type') %}
+    <div style="position: fixed; top: 20px; right: 20px; z-index: 1000;">
+        <a href="/logout" style="background-color: #ef4444; color: white; padding: 0.4rem 0.8rem; border-radius: 0.4rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+            Logout
+        </a>
+    </div>
+    {% endif %}
+
+    <div class="card" style="max-width: 600px;">
+        <div style="text-align: center; margin-bottom: 2.5rem;">
+            <div class="icon-circle" style="background-color: #fee2e2;">⚠️</div>
+            <h2 style="font-weight: 900; font-size: 1.8rem; letter-spacing: -1px; text-transform: uppercase;">Confirm Flight Cancellation</h2>
+        </div>
+
+        <div class="warning-box">
+            <h3>⚠️ Warning</h3>
+            <p>Are you sure you want to cancel this flight? This action will:</p>
+            <ul style="margin: 0.5rem 0; padding-left: 1.5rem; color: #92400e;">
+                <li>Cancel the flight</li>
+                <li>Automatically cancel all related orders</li>
+                <li>This action cannot be undone</li>
+            </ul>
+        </div>
+
+        <div class="flight-details">
+            <h3 style="margin-top: 0;">Flight Details</h3>
+            <p><strong>Flight ID:</strong> {{ flight.flight_id }}</p>
+            <p><strong>Date:</strong> {{ flight.departure_date }}</p>
+            <p><strong>Time:</strong> {{ flight.departure_time }}</p>
+            <p><strong>Route:</strong> {{ flight.origin }} ({{ flight.origin_city }}) → {{ flight.destination }} ({{ flight.destination_city }})</p>
+        </div>
+
+        <form method="POST" action="/manager/cancel_flight/{{ flight.flight_id }}">
+            <div class="action-buttons">
+                <button type="submit" class="btn-confirm">Yes, Cancel Flight</button>
+                <a href="/manager/dashboard" class="btn-cancel">No, Go Back</a>
+            </div>
+        </form>
+
+        <div style="text-align: center; margin-top: 2.5rem;">
+            <a href="/manager/dashboard" style="font-size: 0.75rem; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; color: #94a3b8; text-decoration: none;">
+                &larr; Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+</body>
+</html>
+

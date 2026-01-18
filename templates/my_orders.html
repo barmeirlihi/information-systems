@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Orders - FlyTau</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .orders-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        .order-item {
+            background: white;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            transition: box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        
+        @media (max-width: 1200px) {
+            .orders-container > div:first-of-type {
+                grid-template-columns: repeat(2, 1fr) !important;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .orders-container > div:first-of-type {
+                grid-template-columns: 1fr !important;
+            }
+        }
+        .order-item:hover {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #f1f5f9;
+        }
+        .order-id {
+            font-size: 1.25rem;
+            font-weight: 900;
+            color: #1e293b;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: bold;
+            font-size: 0.875rem;
+        }
+        .status-active {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+        .status-completed {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+        .status-cancelled-customer {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+        .status-cancelled-system {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+        .order-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+        }
+        .detail-label {
+            font-size: 0.875rem;
+            color: #64748b;
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+        .detail-value {
+            font-size: 1rem;
+            color: #1e293b;
+            font-weight: 700;
+        }
+        .order-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #f1f5f9;
+        }
+        .price-section {
+            text-align: left;
+        }
+        .price-label {
+            font-size: 0.875rem;
+            color: #64748b;
+        }
+        .price-value {
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: #1e293b;
+        }
+        .cancellation-fee-note {
+            font-size: 0.75rem;
+            color: #92400e;
+            margin-top: 0.25rem;
+        }
+        .cancel-btn {
+            background-color: #ef4444;
+            color: white;
+            padding: 0.4rem 0.8rem;
+            border-radius: 0.4rem;
+            border: none;
+            font-weight: bold;
+            font-size: 0.875rem;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            min-width: 100px;
+            text-align: center;
+        }
+        .cancel-btn:hover {
+            background-color: #f87171;
+        }
+        .cancel-btn:disabled {
+            background-color: #94a3b8;
+            cursor: not-allowed;
+        }
+        .view-btn {
+            background-color: #60a5fa;
+            color: white;
+            padding: 0.4rem 0.8rem;
+            border-radius: 0.4rem;
+            border: none;
+            font-weight: bold;
+            font-size: 0.875rem;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            min-width: 100px;
+            text-align: center;
+        }
+        .view-btn:hover {
+            background-color: #93c5fd;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #64748b;
+        }
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    {% if session.get('user_type') %}
+    <div style="position: fixed; top: 20px; right: 20px; z-index: 1000; display: flex; gap: 0.5rem;">
+        {% if session.get('user_type') == 'user' %}
+        <a href="/my_orders" style="background-color: #60a5fa; color: white; padding: 0.4rem 0.8rem; border-radius: 0.4rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+            My Orders
+        </a>
+        {% elif session.get('user_type') == 'guest' %}
+        <a href="/manage_orders" style="background-color: #60a5fa; color: white; padding: 0.4rem 0.8rem; border-radius: 0.4rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+            Manage Orders
+        </a>
+        {% endif %}
+        <a href="/logout" style="background-color: #ef4444; color: white; padding: 0.4rem 0.8rem; border-radius: 0.4rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+            Logout
+        </a>
+    </div>
+    {% endif %}
+
+    <div class="orders-container">
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <h1 style="font-weight: 900; font-size: 2.25rem; color: #1e293b; margin-bottom: 0.5rem;">My Orders</h1>
+            <p style="color: #64748b; font-size: 1.125rem;">All your orders including history</p>
+        </div>
+
+        {% if orders %}
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 2rem;">
+            {% for item in orders %}
+            <div class="order-item">
+                <div class="order-header">
+                    <div class="order-id">Order #{{ item.order.order_id }}</div>
+                    <span class="status-badge 
+                        {% if item.display_status == 'Active' %}status-active
+                        {% elif item.display_status == 'Completed' %}status-completed
+                        {% elif item.display_status == 'Cancelled' or item.display_status == 'Cancelled by Customer' %}status-cancelled-customer
+                        {% elif item.display_status == 'Cancelled by System' %}status-cancelled-system
+                        {% endif %}">
+                        {{ item.display_status }}
+                    </span>
+                </div>
+
+                <div class="order-details">
+                    {% if item.order.flight %}
+                    <div class="detail-item">
+                        <span class="detail-label">Flight</span>
+                        <span class="detail-value">{{ item.order.flight.origin_airport }} → {{ item.order.flight.destination_airport }}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Flight Date</span>
+                        <span class="detail-value">{{ item.order.flight.departure_date }}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Departure Time</span>
+                        <span class="detail-value">{{ item.order.flight.departure_time }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="detail-item">
+                        <span class="detail-label">Order Date</span>
+                        <span class="detail-value">{{ item.order.order_date }}</span>
+                    </div>
+                    {% if item.order.selected_seats %}
+                    <div class="detail-item">
+                        <span class="detail-label">Seats</span>
+                        <span class="detail-value">{{ item.order.selected_seats|join(', ') }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="order-footer" style="margin-top: auto;">
+                    <div class="price-section">
+                        {% if item.display_status == 'Cancelled' or item.display_status == 'Cancelled by Customer' %}
+                            <div class="price-label">Cancellation Fee</div>
+                            <div class="price-value">${{ "%.2f"|format(item.cancellation_fee) }}</div>
+                            <div class="cancellation-fee-note">5% of original payment</div>
+                        {% elif item.display_status == 'Cancelled by System' %}
+                            <div class="price-label">Final Price</div>
+                            <div class="price-value">$0.00</div>
+                        {% else %}
+                            <div class="price-label">Final Price</div>
+                            <div class="price-value">${{ "%.2f"|format(item.final_price) }}</div>
+                        {% endif %}
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        {% if item.display_status == 'Active' %}
+                        <a href="/confirm_cancel/{{ item.order.order_id }}" class="cancel-btn">Cancel Order</a>
+                        {% endif %}
+                        <a href="/order_details/{{ item.order.order_id }}" class="view-btn">View Details</a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">📋</div>
+                <h2 style="font-weight: 700; margin-bottom: 0.5rem;">No Orders</h2>
+                <p style="margin-bottom: 2rem;">You haven't made any orders yet</p>
+                <a href="/book_flights" class="btn btn-primary">Start Booking Flights</a>
+            </div>
+        {% endif %}
+
+        <div style="text-align: center; margin-top: 3rem;">
+            <a href="/book_flights" class="link-primary">Book New Flight</a>
+            <br>
+            <a href="/" class="link-primary" style="margin-top: 1rem; display: inline-block;">Back to Homepage</a>
+        </div>
+    </div>
+
+</body>
+</html>
+

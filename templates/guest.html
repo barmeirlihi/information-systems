@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Guest Check-In</title>
     <style>
-        body { font-family: Arial, sans-serif; direction: ltr; padding: 20px; }
+        body { font-family: Arial, sans-serif; direction: ltr; padding: 20px; background-color: #f5ebe0; }
         .container { max-width: 400px; margin: 0 auto; }
         input { width: 100%; padding: 8px; margin: 5px 0 15px 0; box-sizing: border-box; }
         .new-details { background-color: #f9f9f9; padding: 15px; border: 1px solid #ddd; margin-bottom: 15px; }
@@ -17,15 +17,15 @@
     {% if session.get('user_type') %}
     <div style="position: fixed; top: 20px; right: 20px; z-index: 1000; display: flex; gap: 0.5rem;">
         {% if session.get('user_type') == 'user' %}
-        <a href="/my_orders" style="background-color: #2563eb; color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+        <a href="/my_orders" style="background-color: #60a5fa; color: white; padding: 0.4rem 0.8rem; border-radius: 0.4rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
             My Orders
         </a>
         {% elif session.get('user_type') == 'guest' %}
-        <a href="/manage_orders" style="background-color: #2563eb; color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+        <a href="/manage_orders" style="background-color: #60a5fa; color: white; padding: 0.4rem 0.8rem; border-radius: 0.4rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
             Manage Orders
         </a>
         {% endif %}
-        <a href="/logout" style="background-color: #ef4444; color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+        <a href="/logout" style="background-color: #ef4444; color: white; padding: 0.4rem 0.8rem; border-radius: 0.4rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
             Logout
         </a>
     </div>

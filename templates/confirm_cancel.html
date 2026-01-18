@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirm Cancellation - FlyTau</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .warning-box {
+            background-color: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            margin: 1.5rem 0;
+        }
+        .warning-box h3 {
+            margin-top: 0;
+            color: #92400e;
+            font-size: 1.25rem;
+        }
+        .warning-box p {
+            margin-bottom: 0.5rem;
+            color: #78350f;
+        }
+        .order-info {
+            background-color: #f8fafc;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin: 1rem 0;
+        }
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .info-item:last-child {
+            border-bottom: none;
+        }
+        .info-label {
+            font-weight: 600;
+            color: #64748b;
+        }
+        .info-value {
+            font-weight: 700;
+            color: #1e293b;
+        }
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+            justify-content: center;
+        }
+        .btn-confirm {
+            background-color: #ef4444;
+            color: white;
+            padding: 0.75rem 2rem;
+            border-radius: 0.5rem;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn-confirm:hover {
+            background-color: #dc2626;
+        }
+        .btn-cancel {
+            background-color: #64748b;
+            color: white;
+            padding: 0.75rem 2rem;
+            border-radius: 0.5rem;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn-cancel:hover {
+            background-color: #475569;
+        }
+    </style>
+</head>
+<body class="centered-page">
+    {% if session.get('user_type') %}
+    <div style="position: fixed; top: 20px; right: 20px; z-index: 1000; display: flex; gap: 0.5rem;">
+        {% if session.get('user_type') == 'user' %}
+        <a href="/my_orders" style="background-color: #60a5fa; color: white; padding: 0.4rem 0.8rem; border-radius: 0.4rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+            My Orders
+        </a>
+        {% elif session.get('user_type') == 'guest' %}
+        <a href="/manage_orders" style="background-color: #60a5fa; color: white; padding: 0.4rem 0.8rem; border-radius: 0.4rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+            Manage Orders
+        </a>
+        {% endif %}
+        <a href="/logout" style="background-color: #ef4444; color: white; padding: 0.4rem 0.8rem; border-radius: 0.4rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+            Logout
+        </a>
+    </div>
+    {% endif %}
+
+    <div class="card card-extra-round" style="max-width: 600px;">
+        <div class="header-section">
+            <div class="icon-circle" style="background-color: #fee2e2; color: #991b1b;">
+                ⚠️
+            </div>
+            <h2 style="font-weight: 900; font-size: 1.875rem; color: #991b1b;">Confirm Order Cancellation</h2>
+        </div>
+
+        <div class="warning-box">
+            <h3>⚠️ Important Notice</h3>
+            <p><strong>Are you sure you want to cancel this order?</strong></p>
+            <p>Cancelling this order will incur a cancellation fee of <strong>${{ "%.2f"|format(cancellation_fee) }}</strong> (5% of total payment).</p>
+            <p>Orders can only be cancelled at least 36 hours before departure.</p>
+        </div>
+
+        {% if order.flight %}
+        <div class="order-info">
+            <h3 style="margin-top: 0; margin-bottom: 1rem;">Order Details</h3>
+            <div class="info-item">
+                <span class="info-label">Order Number:</span>
+                <span class="info-value">#{{ order.order_id }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Flight:</span>
+                <span class="info-value">{{ order.flight.origin_airport }} → {{ order.flight.destination_airport }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Flight Date:</span>
+                <span class="info-value">{{ order.flight.departure_date }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Departure Time:</span>
+                <span class="info-value">{{ order.flight.departure_time }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Original Price:</span>
+                <span class="info-value">${{ "%.2f"|format(order.total_payment) }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Cancellation Fee:</span>
+                <span class="info-value" style="color: #dc2626;">${{ "%.2f"|format(cancellation_fee) }}</span>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="button-group">
+            <form action="/cancel_order/{{ order.order_id }}" method="POST" style="display: inline;">
+                <button type="submit" class="btn-confirm">Yes, Cancel Order</button>
+            </form>
+            {% if is_guest %}
+                <a href="/order_details/{{ order.order_id }}" class="btn-cancel">No, Go Back</a>
+            {% else %}
+                <a href="/my_orders" class="btn-cancel">No, Go Back</a>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>
+
+

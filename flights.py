@@ -200,7 +200,8 @@ class Flight(ABC):
     def cancel_flight(self):
         """
         Cancels the flight - updates status to 'Cancelled'
-        Also updates all related orders to 'Cancelled by System'
+        Also updates all related orders to 'Cancelled by System' and sets total_payment to 0
+        (full refund for customers)
         
         Returns:
             (success, error_message)
@@ -215,10 +216,11 @@ class Flight(ABC):
             data.sql_insert(query, self.flight_id)
             self.status = 'Cancelled'
             
-            # Update all orders for this flight to 'Cancelled by System'
+            # Update all orders for this flight to 'Cancelled by System' and set total_payment to 0 (full refund)
             orders_query = """
                 UPDATE Orders
-                SET order_status = 'Cancelled by System'
+                SET order_status = 'Cancelled by System',
+                    total_payment = 0.0
                 WHERE order_id IN (
                     SELECT DISTINCT order_id
                     FROM FlightTickets
@@ -235,9 +237,17 @@ class Flight(ABC):
         """Returns URL of destination image"""
         destination_images = {
             'TLV': 'https://www.atarim.gov.il/wp-content/uploads/2020/06/Screenshot_1.png',
-            'JFK': 'https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?auto=format&fit=crop&q=80&w=800',
+            'JFK': 'https://www.masa.co.il/wp-content/uploads/2017/10/nyc_open.jpg',
             'LHR': 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&q=80&w=800',
-            'CDG': 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&q=80&w=800',
+            'CDG': 'https://www.gotravel.co.il/userfiles/_big_BEF155E213C8181A3435EF4084F79D94.jpg',
+            'DXB': 'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&q=80&w=800',
+            'FRA': 'https://images.unsplash.com/photo-1556388158-158ea5ccacbd?auto=format&fit=crop&q=80&w=800',
+            'IST': 'https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?auto=format&fit=crop&q=80&w=800',
+            'MAD': 'https://images.unsplash.com/photo-1539037116277-4db20889f2d4?auto=format&fit=crop&q=80&w=800',
+            'AMS': 'https://www.elal.com/magazine/wp-content/uploads/2019/04/shutterstock_797232592.jpg',
+            'BCN': 'https://images.unsplash.com/photo-1539037116277-4db20889f2d4?auto=format&fit=crop&q=80&w=800',
+            'BKK': 'https://www.elal.com/magazine/wp-content/uploads/2017/01/ThinkstockPhotos-480903890.jpg',
+            'FCO': 'https://www.in-italy.co.il/upload1/rome1.jpg',
         }
         default_image = 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&q=80&w=800'
         return destination_images.get(self.destination_airport, default_image)
@@ -531,3 +541,468 @@ def process_seat_booking(user_email, flight_id, selected_seats):
     
     order = Order(email=user_email)
     return order.process_booking(flight, selected_seats)
+
+
+# ==================== Flight Management Functions ====================
+
+def is_long_flight(flight_duration_minutes):
+    """
+    Determines if a flight is considered 'long' based on duration.
+    Flights over 6 hours (360 minutes) require long flight certification.
+    """
+    return flight_duration_minutes > 360
+
+
+def get_crew_requirements(plane_size, is_long):
+    """
+    Determines crew requirements based on plane size and flight duration.
+    
+    Args:
+        plane_size: 'Small' or 'Large'
+        is_long: Boolean indicating if flight is long duration
+    
+    Returns:
+        dict with 'pilots' and 'attendants' counts
+    """
+    if plane_size == 'Small':
+        return {'pilots': 2, 'attendants': 3}
+    else:  # Large
+        return {'pilots': 3, 'attendants': 6}
+
+
+def get_last_flight_destination_country(entity_id, entity_type):
+    """
+    Gets the destination country of the last flight for a plane, pilot, or attendant.
+    
+    Args:
+        entity_id: plane_id, pilot_id, or attendant_id
+        entity_type: 'plane', 'pilot', or 'attendant'
+    
+    Returns:
+        country name or None if no previous flights
+    """
+    if entity_type == 'plane':
+        query = """
+            SELECT ad.country
+            FROM Flights f
+            JOIN Airports ad ON f.destination_airport_name = ad.airport_name
+            WHERE f.plane_id = %s AND f.status != 'Cancelled'
+            ORDER BY f.departure_date DESC, f.departure_time DESC
+            LIMIT 1
+        """
+    elif entity_type == 'pilot':
+        query = """
+            SELECT ad.country
+            FROM Pilots_In_Flights pif
+            JOIN Flights f ON pif.flight_id = f.flight_id
+            JOIN Airports ad ON f.destination_airport_name = ad.airport_name
+            WHERE pif.pilot_id = %s AND f.status != 'Cancelled'
+            ORDER BY f.departure_date DESC, f.departure_time DESC
+            LIMIT 1
+        """
+    elif entity_type == 'attendant':
+        query = """
+            SELECT ad.country
+            FROM Attendants_In_Flights aif
+            JOIN Flights f ON aif.flight_id = f.flight_id
+            JOIN Airports ad ON f.destination_airport_name = ad.airport_name
+            WHERE aif.attendant_id = %s AND f.status != 'Cancelled'
+            ORDER BY f.departure_date DESC, f.departure_time DESC
+            LIMIT 1
+        """
+    else:
+        return None
+    
+    result = data.sql_query(query, entity_id)
+    if result and len(result) > 0:
+        return result[0][0]
+    return None
+
+
+def get_available_planes(origin_country, is_long_flight=False, departure_date=None, departure_time=None):
+    """
+    Gets available planes that can be used for a flight from origin_country.
+    A plane is available if its last flight destination country matches origin_country,
+    or if it has no previous flights.
+    Also checks that plane is not already assigned to another flight at the same time.
+    
+    For long flights (>6 hours), only Large planes are available.
+    For short flights (<=6 hours), both Small and Large planes are available.
+    
+    All filtering is done in SQL for efficiency.
+    
+    Args:
+        origin_country: Country of origin airport
+        is_long_flight: Boolean indicating if flight is long duration (>6 hours)
+        departure_date: Optional departure date to check for conflicts
+        departure_time: Optional departure time to check for conflicts
+    
+    Returns:
+        List of tuples (plane_id, manufacturer, size, purchase_date)
+    """
+    query = """
+        SELECT DISTINCT p.plane_id, p.manufacturer, p.size, p.purchase_date
+        FROM Planes p
+        LEFT JOIN (
+            SELECT f1.plane_id, f1.destination_airport_name, f1.departure_date, f1.departure_time,
+                   ROW_NUMBER() OVER (PARTITION BY f1.plane_id ORDER BY f1.departure_date DESC, f1.departure_time DESC) as rn
+            FROM Flights f1
+            WHERE f1.status != 'Cancelled'
+        ) last_flight ON p.plane_id = last_flight.plane_id AND last_flight.rn = 1
+        LEFT JOIN Airports ad ON last_flight.destination_airport_name = ad.airport_name
+        WHERE (
+            -- Filter by size: long flights require Large planes only
+            (%s = 0 OR p.size = 'Large')
+            AND (
+                -- Plane has no flights at all (last_flight.plane_id IS NULL)
+                last_flight.plane_id IS NULL
+                OR
+                -- Plane's last flight destination matches origin country
+                ad.country = %s
+            )
+    """
+    
+    params = []
+    is_long = 1 if is_long_flight else 0
+    params.append(is_long)
+    params.append(origin_country)
+    
+    # Add check for time conflicts if date/time provided
+    if departure_date and departure_time:
+        query += """
+            AND p.plane_id NOT IN (
+                SELECT DISTINCT f2.plane_id
+                FROM Flights f2
+                WHERE f2.status != 'Cancelled'
+                AND f2.departure_date = %s
+                AND f2.departure_time = %s
+            )
+        """
+        params.append(departure_date)
+        params.append(departure_time)
+    
+    query += """
+        )
+        ORDER BY p.plane_id
+    """
+    
+    return data.sql_query(query, *params)
+
+
+def get_available_pilots(origin_country, origin_airport=None, is_long_flight=False, departure_date=None, departure_time=None):
+    """
+    Gets available pilots for a flight.
+    A pilot is available if:
+    1. Has long_flight_certified=True if flight is long
+    2. Last flight destination matches origin_airport (or origin_country if airport not specified)
+    3. Last flight arrival time is before new flight departure time
+    4. Not assigned to another flight at the same time (if departure_date/time provided)
+    
+    All filtering is done in SQL for efficiency.
+    
+    Args:
+        origin_country: Country of origin airport
+        origin_airport: Optional origin airport name (for exact matching)
+        is_long_flight: Whether flight requires long flight certification
+        departure_date: Optional departure date to check for conflicts
+        departure_time: Optional departure time to check for conflicts
+    
+    Returns:
+        List of tuples (pilot_id, first_name_he, last_name_he, long_flight_certified)
+    """
+    # Base query for pilots matching certification and last flight destination
+    query = """
+        SELECT DISTINCT p.pilot_id, p.first_name_he, p.last_name_he, p.long_flight_certified
+        FROM Pilots p
+        LEFT JOIN (
+            SELECT pif1.pilot_id, 
+                   f1.destination_airport_name, 
+                   f1.departure_date, 
+                   f1.departure_time,
+                   f1.flight_id,
+                   fr1.flight_duration,
+                   DATE_ADD(
+                       DATE_ADD(f1.departure_date, INTERVAL TIME_TO_SEC(f1.departure_time) SECOND),
+                       INTERVAL fr1.flight_duration MINUTE
+                   ) as arrival_datetime,
+                   ROW_NUMBER() OVER (PARTITION BY pif1.pilot_id ORDER BY f1.departure_date DESC, f1.departure_time DESC) as rn
+            FROM Pilots_In_Flights pif1
+            JOIN Flights f1 ON pif1.flight_id = f1.flight_id
+            JOIN FlightRoutes fr1 ON f1.origin_airport_name = fr1.origin_airport_name 
+                                  AND f1.destination_airport_name = fr1.destination_airport_name
+            WHERE f1.status != 'Cancelled'
+        ) last_flight ON p.pilot_id = last_flight.pilot_id AND last_flight.rn = 1
+        LEFT JOIN Airports ad ON last_flight.destination_airport_name = ad.airport_name
+        WHERE p.long_flight_certified >= %s
+        AND (
+            -- Pilot has no flights at all (last_flight.pilot_id IS NULL)
+            last_flight.pilot_id IS NULL
+            OR
+            (
+                -- Pilot's last flight destination matches origin airport (if specified) or origin country
+                (%s IS NULL AND ad.country = %s)
+                OR
+                (%s IS NOT NULL AND last_flight.destination_airport_name = %s)
+            )
+    """
+    
+    params = []
+    is_long = 1 if is_long_flight else 0
+    params.append(is_long)
+    params.append(origin_airport)  # For NULL check
+    params.append(origin_country)  # For country match
+    params.append(origin_airport)  # For airport check
+    params.append(origin_airport)  # For airport match
+    
+    # Add check for arrival time before departure time if date/time provided
+    if departure_date and departure_time:
+        query += """
+            AND (
+                -- No previous flight OR arrival time is before new departure time
+                last_flight.arrival_datetime IS NULL
+                OR
+                last_flight.arrival_datetime < DATE_ADD(
+                    DATE_ADD(%s, INTERVAL TIME_TO_SEC(%s) SECOND),
+                    INTERVAL 0 MINUTE
+                )
+            )
+        """
+        params.append(departure_date)
+        params.append(departure_time)
+    
+    # Add check for time conflicts (same departure time) if date/time provided
+    if departure_date and departure_time:
+        query += """
+        AND p.pilot_id NOT IN (
+            SELECT DISTINCT pif2.pilot_id
+            FROM Pilots_In_Flights pif2
+            JOIN Flights f2 ON pif2.flight_id = f2.flight_id
+            WHERE f2.status != 'Cancelled'
+            AND f2.departure_date = %s
+            AND f2.departure_time = %s
+        )
+        """
+        params.append(departure_date)
+        params.append(departure_time)
+    
+    query += """
+        )
+    """
+    
+    query += " ORDER BY p.pilot_id"
+    
+    return data.sql_query(query, *params)
+
+
+def get_available_attendants(origin_country, origin_airport=None, is_long_flight=False, departure_date=None, departure_time=None):
+    """
+    Gets available attendants for a flight.
+    An attendant is available if:
+    1. Has long_flight_certified=True if flight is long
+    2. Last flight destination matches origin_airport (or origin_country if airport not specified)
+    3. Last flight arrival time is before new flight departure time
+    4. Not assigned to another flight at the same time (if departure_date/time provided)
+    
+    All filtering is done in SQL for efficiency.
+    
+    Args:
+        origin_country: Country of origin airport
+        origin_airport: Optional origin airport name (for exact matching)
+        is_long_flight: Whether flight requires long flight certification
+        departure_date: Optional departure date to check for conflicts
+        departure_time: Optional departure time to check for conflicts
+    
+    Returns:
+        List of tuples (attendant_id, first_name_he, last_name_he, long_flight_certified)
+    """
+    # Base query for attendants matching certification and last flight destination
+    query = """
+        SELECT DISTINCT a.attendant_id, a.first_name_he, a.last_name_he, a.long_flight_certified
+        FROM Attendants a
+        LEFT JOIN (
+            SELECT aif1.attendant_id, 
+                   f1.destination_airport_name, 
+                   f1.departure_date, 
+                   f1.departure_time,
+                   f1.flight_id,
+                   fr1.flight_duration,
+                   DATE_ADD(
+                       DATE_ADD(f1.departure_date, INTERVAL TIME_TO_SEC(f1.departure_time) SECOND),
+                       INTERVAL fr1.flight_duration MINUTE
+                   ) as arrival_datetime,
+                   ROW_NUMBER() OVER (PARTITION BY aif1.attendant_id ORDER BY f1.departure_date DESC, f1.departure_time DESC) as rn
+            FROM Attendants_In_Flights aif1
+            JOIN Flights f1 ON aif1.flight_id = f1.flight_id
+            JOIN FlightRoutes fr1 ON f1.origin_airport_name = fr1.origin_airport_name 
+                                  AND f1.destination_airport_name = fr1.destination_airport_name
+            WHERE f1.status != 'Cancelled'
+        ) last_flight ON a.attendant_id = last_flight.attendant_id AND last_flight.rn = 1
+        LEFT JOIN Airports ad ON last_flight.destination_airport_name = ad.airport_name
+        WHERE a.long_flight_certified >= %s
+        AND (
+            -- Attendant has no flights at all (last_flight.attendant_id IS NULL)
+            last_flight.attendant_id IS NULL
+            OR
+            (
+                -- Attendant's last flight destination matches origin airport (if specified) or origin country
+                (%s IS NULL AND ad.country = %s)
+                OR
+                (%s IS NOT NULL AND last_flight.destination_airport_name = %s)
+            )
+    """
+    
+    params = []
+    is_long = 1 if is_long_flight else 0
+    params.append(is_long)
+    params.append(origin_airport)  # For NULL check
+    params.append(origin_country)  # For country match
+    params.append(origin_airport)  # For airport check
+    params.append(origin_airport)  # For airport match
+    
+    # Add check for arrival time before departure time if date/time provided
+    if departure_date and departure_time:
+        query += """
+            AND (
+                -- No previous flight OR arrival time is before new departure time
+                last_flight.arrival_datetime IS NULL
+                OR
+                last_flight.arrival_datetime < DATE_ADD(
+                    DATE_ADD(%s, INTERVAL TIME_TO_SEC(%s) SECOND),
+                    INTERVAL 0 MINUTE
+                )
+            )
+        """
+        params.append(departure_date)
+        params.append(departure_time)
+    
+    # Add check for time conflicts (same departure time) if date/time provided
+    if departure_date and departure_time:
+        query += """
+        AND a.attendant_id NOT IN (
+            SELECT DISTINCT aif2.attendant_id
+            FROM Attendants_In_Flights aif2
+            JOIN Flights f2 ON aif2.flight_id = f2.flight_id
+            WHERE f2.status != 'Cancelled'
+            AND f2.departure_date = %s
+            AND f2.departure_time = %s
+        )
+        """
+        params.append(departure_date)
+        params.append(departure_time)
+    
+    query += """
+        )
+    """
+    
+    query += " ORDER BY a.attendant_id"
+    
+    return data.sql_query(query, *params)
+
+
+def get_flight_route_info(origin_airport, destination_airport):
+    """
+    Gets flight route information including duration.
+    
+    Returns:
+        tuple (flight_duration, origin_country, destination_country) or None
+    """
+    query = """
+        SELECT fr.flight_duration, ao.country, ad.country
+        FROM FlightRoutes fr
+        JOIN Airports ao ON fr.origin_airport_name = ao.airport_name
+        JOIN Airports ad ON fr.destination_airport_name = ad.airport_name
+        WHERE fr.origin_airport_name = %s AND fr.destination_airport_name = %s
+    """
+    result = data.sql_query(query, origin_airport, destination_airport)
+    if result and len(result) > 0:
+        return result[0]
+    return None
+
+
+def get_next_flight_id():
+    """Gets the next available flight_id"""
+    query = "SELECT MAX(flight_id) FROM Flights"
+    result = data.sql_query(query)
+    if result and result[0][0] is not None:
+        return result[0][0] + 1
+    return 1001  # Starting flight ID
+
+
+def add_flight(departure_date, departure_time, origin_airport, destination_airport,
+                plane_id, pilot_ids, attendant_ids, price_economy, price_business=None):
+    """
+    Adds a new flight to the database.
+    Note: All validations are done in SQL queries (get_available_planes, get_available_pilots, etc.)
+    so we only need basic checks here.
+    
+    Args:
+        departure_date: Date string (YYYY-MM-DD)
+        departure_time: Time string (HH:MM:SS)
+        origin_airport: Origin airport code
+        destination_airport: Destination airport code
+        plane_id: Plane ID
+        pilot_ids: List of pilot IDs
+        attendant_ids: List of attendant IDs
+        price_economy: Economy class price
+        price_business: Business class price (optional, required for large planes)
+    
+    Returns:
+        tuple (success: bool, flight_id: int or None, error_message: str or None)
+    """
+    try:
+        # 1. Validate route exists
+        route_info = get_flight_route_info(origin_airport, destination_airport)
+        if not route_info:
+            return False, None, "Route does not exist in database"
+        
+        flight_duration, origin_country, destination_country = route_info
+        
+        # 2. Get plane size (needed for crew requirements and business class check)
+        plane_query = "SELECT size FROM Planes WHERE plane_id = %s"
+        plane_result = data.sql_query(plane_query, plane_id)
+        if not plane_result:
+            return False, None, "Plane not found"
+        
+        plane_size = plane_result[0][0]
+        is_long = is_long_flight(flight_duration)
+        crew_reqs = get_crew_requirements(plane_size, is_long)
+        
+        # 3. Basic validation - check counts match requirements
+        if len(pilot_ids) != crew_reqs['pilots']:
+            return False, None, f"Need exactly {crew_reqs['pilots']} pilots for {plane_size} plane"
+        
+        if len(attendant_ids) != crew_reqs['attendants']:
+            return False, None, f"Need exactly {crew_reqs['attendants']} attendants for {plane_size} plane"
+        
+        # 4. Validate business class price for large planes
+        if plane_size == 'Large' and price_business is None:
+            return False, None, "Business class price is required for large planes"
+        
+        # 5. Get next flight ID
+        flight_id = get_next_flight_id()
+        
+        # 6. Insert flight
+        flight_insert = """
+            INSERT INTO Flights (flight_id, departure_time, departure_date, status, 
+                                plane_id, origin_airport_name, destination_airport_name,
+                                price_economy, price_business)
+            VALUES (%s, %s, %s, 'Active', %s, %s, %s, %s, %s)
+        """
+        data.sql_insert(flight_insert, flight_id, departure_time, departure_date, 
+                       plane_id, origin_airport, destination_airport,
+                       price_economy, price_business)
+        
+        # 7. Assign pilots
+        for pilot_id in pilot_ids:
+            pilot_insert = "INSERT INTO Pilots_In_Flights (pilot_id, flight_id) VALUES (%s, %s)"
+            data.sql_insert(pilot_insert, pilot_id, flight_id)
+        
+        # 8. Assign attendants
+        for attendant_id in attendant_ids:
+            attendant_insert = "INSERT INTO Attendants_In_Flights (attendant_id, flight_id) VALUES (%s, %s)"
+            data.sql_insert(attendant_insert, attendant_id, flight_id)
+        
+        return True, flight_id, None
+        
+    except Exception as e:
+        return False, None, f"Error adding flight: {str(e)}"

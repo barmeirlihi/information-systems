@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete Booking - FlyTau</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body {
+            background: #f8fafc;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+        
+        .header-section {
+            background: white;
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .page-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 1rem;
+        }
+        
+        .flight-summary {
+            background: #f8fafc;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-top: 1rem;
+        }
+        
+        .summary-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .summary-label {
+            font-size: 0.875rem;
+            color: #64748b;
+        }
+        
+        .summary-value {
+            font-weight: 600;
+            color: #0f172a;
+        }
+        
+        .form-section {
+            background: white;
+            border-radius: 1rem;
+            padding: 2rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 0.5rem;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #e76f51;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .form-group input[readonly] {
+            background: #f1f5f9;
+            cursor: not-allowed;
+        }
+        
+        .price-summary {
+            background: linear-gradient(135deg, #f4a261 0%, #e76f51 100%);
+            color: white;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-top: 2rem;
+        }
+        
+        .price-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+        
+        .price-total {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 2px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(135deg, #f4a261 0%, #e76f51 100%);
+            color: white;
+            border: none;
+            border-radius: 0.75rem;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-top: 1.5rem;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(102, 126, 234, 0.3);
+        }
+        
+        .alert {
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 1rem;
+            color: #e76f51;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        .selected-seats {
+            margin-top: 1rem;
+        }
+        
+        .seat-tag {
+            display: inline-block;
+            background: #e0f2fe;
+            color: #0ea5e9;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.25rem;
+            margin: 0.25rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    {% if session.get('user_type') %}
+    <div style="position: fixed; top: 20px; right: 20px; z-index: 1000; display: flex; gap: 0.5rem;">
+        {% if session.get('user_type') == 'user' %}
+        <a href="/my_orders" style="background-color: #60a5fa; color: white; padding: 0.4rem 0.8rem; border-radius: 0.4rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+            My Orders
+        </a>
+        {% elif session.get('user_type') == 'guest' %}
+        <a href="/manage_orders" style="background-color: #60a5fa; color: white; padding: 0.4rem 0.8rem; border-radius: 0.4rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+            Manage Orders
+        </a>
+        {% endif %}
+        <a href="/logout" style="background-color: #ef4444; color: white; padding: 0.4rem 0.8rem; border-radius: 0.4rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+            Logout
+        </a>
+    </div>
+    {% endif %}
+
+    <div class="container">
+        <a href="/select_seats/{{ flight.flight_id }}" class="back-link">← Back to Seat Selection</a>
+        
+        <div class="header-section">
+            <h1 class="page-title">Complete Your Booking</h1>
+            
+            <div class="flight-summary">
+                <h3 style="margin-bottom: 1rem; color: #475569;">Flight Details</h3>
+                <div class="summary-row">
+                    <div>
+                        <div class="summary-label">Flight Number</div>
+                        <div class="summary-value">#{{ flight.flight_id }}</div>
+                    </div>
+                    <div>
+                        <div class="summary-label">Route</div>
+                        <div class="summary-value">{{ flight.origin_airport }} → {{ flight.destination_airport }}</div>
+                    </div>
+                    <div>
+                        <div class="summary-label">Date</div>
+                        <div class="summary-value">{{ flight.departure_date }}</div>
+                    </div>
+                    <div>
+                        <div class="summary-label">Departure Time</div>
+                        <div class="summary-value">{{ flight.departure_time }}</div>
+                    </div>
+                </div>
+                
+                <div class="selected-seats">
+                    <div class="summary-label" style="margin-bottom: 0.5rem;">Selected Seats:</div>
+                    {% for seat in booking['seat_details'] %}
+                    <span class="seat-tag">Row {{ seat[0] }}, Seat {{ seat[1] }} ({{ seat[2] }})</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        {% if error %}
+        <div class="alert">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST" action="/complete_booking/{{ flight.flight_id }}">
+            <div class="form-section">
+                <h2 style="margin-bottom: 1.5rem; color: #0f172a;">{% if user_type == 'guest' %}Please provide your details{% else %}Review your details{% endif %}</h2>
+                
+                <div class="form-group">
+                    <label for="first_name">First Name *</label>
+                    {% if user_type == 'guest' %}
+                    <input type="text" id="first_name" name="first_name" value="{{ user_data['first_name'] }}" required>
+                    {% else %}
+                    <input type="text" id="first_name" name="first_name" value="{{ user_data['first_name'] }}" readonly>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="last_name">Last Name *</label>
+                    {% if user_type == 'guest' %}
+                    <input type="text" id="last_name" name="last_name" value="{{ user_data['last_name'] }}" required>
+                    {% else %}
+                    <input type="text" id="last_name" name="last_name" value="{{ user_data['last_name'] }}" readonly>
+                    {% endif %}
+                </div>
+                
+                {% if user_type == 'guest' %}
+                <div class="form-group">
+                    <label for="passport_number">Passport Number *</label>
+                    <input type="text" id="passport_number" name="passport_number" value="{{ user_data['passport_number'] }}" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="birth_date">Birth Date *</label>
+                    <input type="date" id="birth_date" name="birth_date" value="{{ user_data['birth_date'] }}" required>
+                </div>
+                {% else %}
+                <div class="form-group">
+                    <label for="passport_number">Passport Number</label>
+                    <input type="text" id="passport_number" name="passport_number" value="{{ user_data['passport_number'] }}" readonly>
+                </div>
+                
+                <div class="form-group">
+                    <label for="birth_date">Birth Date</label>
+                    <input type="date" id="birth_date" name="birth_date" value="{{ user_data['birth_date'] }}" readonly>
+                </div>
+                {% endif %}
+                
+                <div class="form-group">
+                    <label for="phone_numbers">Phone Numbers * (comma-separated)</label>
+                    {% if user_type == 'guest' %}
+                    <input type="text" id="phone_numbers" name="phone_numbers" value="{{ user_data['phone_numbers'] }}" placeholder="050-1234567, 052-9876543" required>
+                    {% else %}
+                    <input type="text" id="phone_numbers" name="phone_numbers" value="{{ user_data['phone_numbers'] }}" readonly>
+                    {% endif %}
+                </div>
+                
+                <div class="price-summary">
+                    <div class="price-row">
+                        <span>Total Price:</span>
+                        <span>${{ "%.2f"|format(booking['total_payment']) }}</span>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn">Continue to Confirmation</button>
+            </div>
+        </form>
+    </div>
+</body>
+</html>
+
