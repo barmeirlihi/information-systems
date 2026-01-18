@@ -1014,6 +1014,9 @@ def manager_reports():
                          revenue_by_class=reports_data['revenue_by_class'],
                          pilots_hours=reports_data['employee_hours']['pilots'],
                          attendants_hours=reports_data['employee_hours']['attendants'],
+                         total_orders=reports_data['total_orders'],
+                         active_flights=reports_data['active_flights'],
+                         total_passengers=reports_data['total_passengers'],
                          charts=charts)
 
 @app.route("/manager/confirm_cancel_flight/<int:flight_id>")

@@ -104,7 +104,7 @@
         .stat-value {
             font-size: 3rem;
             font-weight: 900;
-            color: #e9724c;
+            color: #9E3B3B;
             margin: 0.5rem 0;
         }
         
@@ -165,7 +165,7 @@
         }
         
         .report-table th {
-            background-color: #255f85;
+            background-color: var(--table-header-color, #D25353);
             color: white;
             font-weight: 600;
             position: sticky;
@@ -279,20 +279,8 @@
                 </div>
             </div>
             
-            <!-- Report 1: Average Tickets -->
-            <div class="dashboard-card stat-card">
-                <div class="card-header" style="justify-content: center;">
-                    <h3 class="card-title" style="margin: 0;">Average Tickets</h3>
-                </div>
-                <div class="card-content">
-                    <span class="ticket-icon">🎟️</span>
-                    <div class="stat-value">{{ "%.2f"|format(avg_tickets) if avg_tickets else "0.00" }}</div>
-                    <div class="stat-label">Per Landed Flight</div>
-                </div>
-            </div>
-            
             <!-- Report 4: Cancellation Rate -->
-            <div class="dashboard-card medium-card">
+            <div class="dashboard-card full-width-card">
                 <div class="card-header">
                     <h3 class="card-title">Cancellation Rate</h3>
                     <span class="card-icon">📉</span>
@@ -310,7 +298,7 @@
             </div>
             
             <!-- Report 2: Revenue by Class -->
-            <div class="dashboard-card large-card">
+            <div class="dashboard-card" style="grid-column: 1 / span 6; grid-row: 1 / span 2;">
                 <div class="card-header">
                     <h3 class="card-title">Revenue by Class</h3>
                     <span class="card-icon">💰</span>
@@ -351,6 +339,56 @@
                 </div>
             </div>
             
+            <!-- Statistics Cards - Row 1 (next to Revenue by Class) -->
+            <!-- Report 1: Average Tickets -->
+            <div class="dashboard-card stat-card" style="grid-column: 7 / span 3; grid-row: 1;">
+                <div class="card-header" style="justify-content: center;">
+                    <h3 class="card-title" style="margin: 0;">Average Tickets</h3>
+                </div>
+                <div class="card-content">
+                    <span class="ticket-icon">🎟️</span>
+                    <div class="stat-value">{{ "%.2f"|format(avg_tickets) if avg_tickets else "0.00" }}</div>
+                    <div class="stat-label">Per Landed Flight</div>
+                </div>
+            </div>
+            
+            <!-- Total Orders -->
+            <div class="dashboard-card stat-card" style="grid-column: 10 / span 3; grid-row: 1;">
+                <div class="card-header" style="justify-content: center;">
+                    <h3 class="card-title" style="margin: 0;">Total Orders</h3>
+                </div>
+                <div class="card-content">
+                    <span class="ticket-icon">📋</span>
+                    <div class="stat-value">{{ total_orders if total_orders else 0 }}</div>
+                    <div class="stat-label">All Orders</div>
+                </div>
+            </div>
+            
+            <!-- Statistics Cards - Row 2 (below first row, right side) -->
+            <!-- Active Flights -->
+            <div class="dashboard-card stat-card" style="grid-column: 7 / span 3; grid-row: 2;">
+                <div class="card-header" style="justify-content: center;">
+                    <h3 class="card-title" style="margin: 0;">Active Flights</h3>
+                </div>
+                <div class="card-content">
+                    <span class="ticket-icon">✈️</span>
+                    <div class="stat-value">{{ active_flights if active_flights else 0 }}</div>
+                    <div class="stat-label">Currently Active</div>
+                </div>
+            </div>
+            
+            <!-- Total Passengers -->
+            <div class="dashboard-card stat-card" style="grid-column: 10 / span 3; grid-row: 2;">
+                <div class="card-header" style="justify-content: center;">
+                    <h3 class="card-title" style="margin: 0;">Total Passengers</h3>
+                </div>
+                <div class="card-content">
+                    <span class="ticket-icon">👥</span>
+                    <div class="stat-value">{{ total_passengers if total_passengers else 0 }}</div>
+                    <div class="stat-label">All Tickets Sold</div>
+                </div>
+            </div>
+            
             <!-- Report 3: Employee Flight Hours -->
             <div class="dashboard-card full-width-card">
                 <div class="card-header">
@@ -359,14 +397,14 @@
                 </div>
                 <div class="card-content">
                     <p>Cumulative flight hours for pilots and attendants by flight length</p>
-                    
+
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1rem;">
                         <!-- Pilots Table -->
                         <div>
                             <h4 style="margin-top: 0; margin-bottom: 1rem; color: #1e293b;">Pilots</h4>
                             {% if pilots_hours %}
                             <div class="table-container">
-                                <table class="report-table">
+                                <table class="report-table" style="--table-header-color: #9E3B3B;">
                                     <thead>
                                         <tr>
                                             <th>ID</th>
@@ -399,7 +437,7 @@
                             <h4 style="margin-top: 0; margin-bottom: 1rem; color: #1e293b;">Attendants</h4>
                             {% if attendants_hours %}
                             <div class="table-container">
-                                <table class="report-table">
+                                <table class="report-table" style="--table-header-color: #9E3B3B;">
                                     <thead>
                                         <tr>
                                             <th>ID</th>
