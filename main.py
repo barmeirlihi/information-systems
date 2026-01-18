@@ -1,6 +1,6 @@
 from flask import Flask, render_template, redirect, request, session
 from flask_session import Session
-from datetime import timedelta
+from datetime import timedelta, date
 
 import data
 import guest
@@ -10,6 +10,7 @@ from users import *
 from flights import *
 from guest import *
 from order import Order
+import reports
 
 
 app = Flask(__name__)
@@ -126,7 +127,7 @@ def manager():
         if result and len(result) > 0 and result[0][0] == password:
             session['user_type'] = 'manager'
             session['manager_id'] = manager_id
-            return redirect("/flights_management")
+            return redirect("/manager/dashboard")
         else:
             return render_template("manager.html", message='Incorrect Login Details.')
     return render_template("manager.html")
@@ -389,7 +390,424 @@ def confirm_booking(flight_id):
 def flights_management():
     if not require_user_type(['manager']):
         return render_template("manager.html", message='Access denied. Please log in as a manager.')
-    return render_template("flights_management.html")
+    
+    airports = get_all_airports()
+    today = date.today().isoformat()
+    
+    return render_template("flights_management.html", 
+                         step=1, 
+                         airports=airports, 
+                         today=today)
+
+@app.route("/flights_management/select_route", methods=["POST"])
+def select_route():
+    """Step 1: Process route selection and move to step 2"""
+    if not require_user_type(['manager']):
+        return redirect("/manager")
+    
+    origin_airport = request.form.get("origin_airport")
+    destination_airport = request.form.get("destination_airport")
+    departure_date = request.form.get("departure_date")
+    departure_time = request.form.get("departure_time")
+    
+    if not all([origin_airport, destination_airport, departure_date, departure_time]):
+        airports = get_all_airports()
+        return render_template("flights_management.html", 
+                             step=1,
+                             airports=airports,
+                             today=date.today().isoformat(),
+                             error="Please fill all required fields")
+    
+    # Get route information
+    route_info_result = get_flight_route_info(origin_airport, destination_airport)
+    if not route_info_result:
+        airports = get_all_airports()
+        return render_template("flights_management.html", 
+                             step=1,
+                             airports=airports,
+                             today=date.today().isoformat(),
+                             error="Route not found in database")
+    
+    flight_duration, origin_country, destination_country = route_info_result
+    is_long = is_long_flight(flight_duration)
+    
+    # Calculate duration hours and minutes
+    duration_hours = flight_duration // 60
+    duration_minutes = flight_duration % 60
+    
+    route_info = {
+        'duration_hours': duration_hours,
+        'duration_minutes': duration_minutes,
+        'is_long_flight': is_long
+    }
+    
+    # Get available planes
+    available_planes = get_available_planes(origin_country, is_long_flight=is_long, 
+                                          departure_date=departure_date, 
+                                          departure_time=departure_time)
+    
+    # Get crew requirements
+    large_crew = get_crew_requirements('Large', is_long)
+    small_crew = get_crew_requirements('Small', is_long)
+    
+    # Get available pilots and attendants (will be filtered after plane selection)
+    available_pilots = get_available_pilots(origin_country, origin_airport=origin_airport,
+                                           is_long_flight=is_long,
+                                           departure_date=departure_date,
+                                           departure_time=departure_time)
+    
+    available_attendants = get_available_attendants(origin_country, origin_airport=origin_airport,
+                                                    is_long_flight=is_long,
+                                                    departure_date=departure_date,
+                                                    departure_time=departure_time)
+    
+    return render_template("flights_management.html",
+                         step=2,
+                         origin_airport=origin_airport,
+                         destination_airport=destination_airport,
+                         departure_date=departure_date,
+                         departure_time=departure_time,
+                         route_info=route_info,
+                         available_planes=available_planes,
+                         large_crew=large_crew,
+                         small_crew=small_crew,
+                         available_pilots=available_pilots,
+                         available_attendants=available_attendants,
+                         today=date.today().isoformat())
+
+@app.route("/flights_management/update_plane_selection", methods=["POST"])
+def update_plane_selection():
+    """Update plane selection and show crew selection"""
+    if not require_user_type(['manager']):
+        return redirect("/manager")
+    
+    origin_airport = request.form.get("origin_airport")
+    destination_airport = request.form.get("destination_airport")
+    departure_date = request.form.get("departure_date")
+    departure_time = request.form.get("departure_time")
+    plane_id = request.form.get("plane_id")
+    
+    # Get previously selected crew (if any)
+    selected_pilot_ids = request.form.getlist("pilot_ids")
+    selected_attendant_ids = request.form.getlist("attendant_ids")
+    price_economy = request.form.get("price_economy")
+    price_business = request.form.get("price_business")
+    
+    if not all([origin_airport, destination_airport, departure_date, departure_time]):
+        return redirect("/flights_management")
+    
+    # Get route information
+    route_info_result = get_flight_route_info(origin_airport, destination_airport)
+    if not route_info_result:
+        return redirect("/flights_management")
+    
+    flight_duration, origin_country, destination_country = route_info_result
+    is_long = is_long_flight(flight_duration)
+    
+    duration_hours = flight_duration // 60
+    duration_minutes = flight_duration % 60
+    
+    route_info = {
+        'duration_hours': duration_hours,
+        'duration_minutes': duration_minutes,
+        'is_long_flight': is_long
+    }
+    
+    # Get available planes
+    available_planes = get_available_planes(origin_country, is_long_flight=is_long, 
+                                          departure_date=departure_date, 
+                                          departure_time=departure_time)
+    
+    # Get crew requirements
+    large_crew = get_crew_requirements('Large', is_long)
+    small_crew = get_crew_requirements('Small', is_long)
+    
+    # Get available pilots and attendants
+    available_pilots = get_available_pilots(origin_country, origin_airport=origin_airport,
+                                           is_long_flight=is_long,
+                                           departure_date=departure_date,
+                                           departure_time=departure_time)
+    
+    available_attendants = get_available_attendants(origin_country, origin_airport=origin_airport,
+                                                    is_long_flight=is_long,
+                                                    departure_date=departure_date,
+                                                    departure_time=departure_time)
+    
+    # Validate crew selection if plane is selected
+    pilot_error = None
+    attendant_error = None
+    crew_error = None
+    
+    if plane_id:
+        try:
+            plane_id_int = int(plane_id)
+            selected_plane = next((p for p in available_planes if p[0] == plane_id_int), None)
+            if selected_plane:
+                plane_size = selected_plane[2]
+                crew_reqs = large_crew if plane_size == 'Large' else small_crew
+                
+                # Check pilot selection
+                if len(selected_pilot_ids) > 0 and len(selected_pilot_ids) != crew_reqs['pilots']:
+                    pilot_error = f"Please select exactly {crew_reqs['pilots']} pilots"
+                
+                # Check attendant selection
+                if len(selected_attendant_ids) > 0 and len(selected_attendant_ids) != crew_reqs['attendants']:
+                    attendant_error = f"Please select exactly {crew_reqs['attendants']} attendants"
+        except ValueError:
+            pass
+    
+    return render_template("flights_management.html",
+                         step=2,
+                         origin_airport=origin_airport,
+                         destination_airport=destination_airport,
+                         departure_date=departure_date,
+                         departure_time=departure_time,
+                         route_info=route_info,
+                         available_planes=available_planes,
+                         selected_plane_id=plane_id,
+                         selected_pilot_ids=selected_pilot_ids,
+                         selected_attendant_ids=selected_attendant_ids,
+                         price_economy=price_economy,
+                         price_business=price_business,
+                         large_crew=large_crew,
+                         small_crew=small_crew,
+                         available_pilots=available_pilots,
+                         available_attendants=available_attendants,
+                         pilot_error=pilot_error,
+                         attendant_error=attendant_error,
+                         crew_error=crew_error,
+                         today=date.today().isoformat())
+
+@app.route("/flights_management/add_flight", methods=["POST"])
+def add_flight_route():
+    """Add new flight to database"""
+    if not require_user_type(['manager']):
+        return redirect("/manager")
+    
+    origin_airport = request.form.get("origin_airport")
+    destination_airport = request.form.get("destination_airport")
+    departure_date = request.form.get("departure_date")
+    departure_time = request.form.get("departure_time")
+    plane_id = request.form.get("plane_id")
+    price_economy = request.form.get("price_economy")
+    price_business = request.form.get("price_business")
+    
+    # Get pilot and attendant IDs
+    pilot_ids = request.form.getlist("pilot_ids")
+    attendant_ids = request.form.getlist("attendant_ids")
+    
+    # Get route information for error handling
+    route_info_result = get_flight_route_info(origin_airport, destination_airport)
+    if not route_info_result:
+        return redirect("/flights_management")
+    
+    flight_duration, origin_country, destination_country = route_info_result
+    is_long = is_long_flight(flight_duration)
+    
+    duration_hours = flight_duration // 60
+    duration_minutes = flight_duration % 60
+    
+    route_info = {
+        'duration_hours': duration_hours,
+        'duration_minutes': duration_minutes,
+        'is_long_flight': is_long
+    }
+    
+    # Get available planes and crew
+    available_planes = get_available_planes(origin_country, is_long_flight=is_long, 
+                                          departure_date=departure_date, 
+                                          departure_time=departure_time)
+    large_crew = get_crew_requirements('Large', is_long)
+    small_crew = get_crew_requirements('Small', is_long)
+    available_pilots = get_available_pilots(origin_country, origin_airport=origin_airport,
+                                           is_long_flight=is_long,
+                                           departure_date=departure_date,
+                                           departure_time=departure_time)
+    available_attendants = get_available_attendants(origin_country, origin_airport=origin_airport,
+                                                    is_long_flight=is_long,
+                                                    departure_date=departure_date,
+                                                    departure_time=departure_time)
+    
+    if not all([origin_airport, destination_airport, departure_date, departure_time, 
+                plane_id, price_economy]):
+        crew_error = "Please fill all required fields"
+        return render_template("flights_management.html",
+                             step=2,
+                             origin_airport=origin_airport,
+                             destination_airport=destination_airport,
+                             departure_date=departure_date,
+                             departure_time=departure_time,
+                             route_info=route_info,
+                             available_planes=available_planes,
+                             selected_plane_id=plane_id,
+                             selected_pilot_ids=pilot_ids,
+                             selected_attendant_ids=attendant_ids,
+                             price_economy=price_economy,
+                             price_business=price_business,
+                             large_crew=large_crew,
+                             small_crew=small_crew,
+                             available_pilots=available_pilots,
+                             available_attendants=available_attendants,
+                             crew_error=crew_error,
+                             today=date.today().isoformat())
+    
+    # Convert plane_id to int
+    try:
+        plane_id_int = int(plane_id)
+    except ValueError:
+        crew_error = "Invalid plane ID"
+        return render_template("flights_management.html",
+                             step=2,
+                             origin_airport=origin_airport,
+                             destination_airport=destination_airport,
+                             departure_date=departure_date,
+                             departure_time=departure_time,
+                             route_info=route_info,
+                             available_planes=available_planes,
+                             selected_plane_id=plane_id,
+                             selected_pilot_ids=pilot_ids,
+                             selected_attendant_ids=attendant_ids,
+                             price_economy=price_economy,
+                             price_business=price_business,
+                             large_crew=large_crew,
+                             small_crew=small_crew,
+                             available_pilots=available_pilots,
+                             available_attendants=available_attendants,
+                             crew_error=crew_error,
+                             today=date.today().isoformat())
+    
+    # Get plane size for crew validation
+    selected_plane = next((p for p in available_planes if p[0] == plane_id_int), None)
+    if not selected_plane:
+        crew_error = "Selected plane not available"
+        return render_template("flights_management.html",
+                             step=2,
+                             origin_airport=origin_airport,
+                             destination_airport=destination_airport,
+                             departure_date=departure_date,
+                             departure_time=departure_time,
+                             route_info=route_info,
+                             available_planes=available_planes,
+                             selected_plane_id=plane_id,
+                             selected_pilot_ids=pilot_ids,
+                             selected_attendant_ids=attendant_ids,
+                             price_economy=price_economy,
+                             price_business=price_business,
+                             large_crew=large_crew,
+                             small_crew=small_crew,
+                             available_pilots=available_pilots,
+                             available_attendants=available_attendants,
+                             crew_error=crew_error,
+                             today=date.today().isoformat())
+    
+    plane_size = selected_plane[2]
+    crew_reqs = large_crew if plane_size == 'Large' else small_crew
+    
+    # Validate crew selection
+    pilot_error = None
+    attendant_error = None
+    crew_error = None
+    
+    if len(pilot_ids) != crew_reqs['pilots']:
+        pilot_error = f"Please select exactly {crew_reqs['pilots']} pilots"
+        crew_error = f"Please select exactly {crew_reqs['pilots']} pilots and {crew_reqs['attendants']} attendants"
+    
+    if len(attendant_ids) != crew_reqs['attendants']:
+        attendant_error = f"Please select exactly {crew_reqs['attendants']} attendants"
+        if not crew_error:
+            crew_error = f"Please select exactly {crew_reqs['pilots']} pilots and {crew_reqs['attendants']} attendants"
+    
+    if crew_error:
+        return render_template("flights_management.html",
+                             step=2,
+                             origin_airport=origin_airport,
+                             destination_airport=destination_airport,
+                             departure_date=departure_date,
+                             departure_time=departure_time,
+                             route_info=route_info,
+                             available_planes=available_planes,
+                             selected_plane_id=plane_id,
+                             selected_pilot_ids=pilot_ids,
+                             selected_attendant_ids=attendant_ids,
+                             price_economy=price_economy,
+                             price_business=price_business,
+                             large_crew=large_crew,
+                             small_crew=small_crew,
+                             available_pilots=available_pilots,
+                             available_attendants=available_attendants,
+                             pilot_error=pilot_error,
+                             attendant_error=attendant_error,
+                             crew_error=crew_error,
+                             today=date.today().isoformat())
+    
+    # Convert prices to float
+    try:
+        price_economy = float(price_economy)
+        price_business = float(price_business) if price_business else None
+    except ValueError:
+        crew_error = "Invalid price format"
+        return render_template("flights_management.html",
+                             step=2,
+                             origin_airport=origin_airport,
+                             destination_airport=destination_airport,
+                             departure_date=departure_date,
+                             departure_time=departure_time,
+                             route_info=route_info,
+                             available_planes=available_planes,
+                             selected_plane_id=plane_id,
+                             selected_pilot_ids=pilot_ids,
+                             selected_attendant_ids=attendant_ids,
+                             price_economy=price_economy,
+                             price_business=price_business,
+                             large_crew=large_crew,
+                             small_crew=small_crew,
+                             available_pilots=available_pilots,
+                             available_attendants=available_attendants,
+                             crew_error=crew_error,
+                             today=date.today().isoformat())
+    
+    # Add flight using the function from flights.py
+    success, flight_id, error_message = add_flight(
+        departure_date=departure_date,
+        departure_time=departure_time,
+        origin_airport=origin_airport,
+        destination_airport=destination_airport,
+        plane_id=plane_id_int,
+        pilot_ids=pilot_ids,
+        attendant_ids=attendant_ids,
+        price_economy=price_economy,
+        price_business=price_business
+    )
+    
+    if success:
+        return render_template("flights_management.html",
+                             step=1,
+                             airports=get_all_airports(),
+                             today=date.today().isoformat(),
+                             success=True,
+                             flight_id=flight_id)
+    else:
+        # Return to step 2 with error message
+        crew_error = error_message
+        return render_template("flights_management.html",
+                             step=2,
+                             origin_airport=origin_airport,
+                             destination_airport=destination_airport,
+                             departure_date=departure_date,
+                             departure_time=departure_time,
+                             route_info=route_info,
+                             available_planes=available_planes,
+                             selected_plane_id=str(plane_id_int),
+                             selected_pilot_ids=pilot_ids,
+                             selected_attendant_ids=attendant_ids,
+                             price_economy=str(price_economy),
+                             price_business=str(price_business) if price_business else None,
+                             large_crew=large_crew,
+                             small_crew=small_crew,
+                             available_pilots=available_pilots,
+                             available_attendants=available_attendants,
+                             crew_error=crew_error,
+                             today=date.today().isoformat())
 
 @app.route("/manage_orders", methods=["GET", "POST"])
 def manage_orders():
@@ -538,6 +956,108 @@ def cancel_order(order_id):
                              cancelled=True)
     else:
         return redirect("/my_orders")
+
+@app.route("/manager/dashboard")
+def manager_dashboard():
+    """Manager dashboard - shows all flights"""
+    if not require_user_type(['manager']):
+        return redirect("/manager")
+    
+    # Get all flights with details
+    query = """
+        SELECT 
+            f.flight_id,
+            f.departure_time,
+            f.departure_date,
+            f.origin_airport_name,
+            f.destination_airport_name,
+            f.plane_id,
+            f.status,
+            ao.city as origin_city,
+            ao.country as origin_country,
+            ad.city as destination_city,
+            ad.country as destination_country,
+            CASE 
+                WHEN TIMESTAMPDIFF(HOUR, NOW(), CONCAT(f.departure_date, ' ', f.departure_time)) > 72 
+                THEN 1 
+                ELSE 0 
+            END as can_cancel
+        FROM Flights f
+        JOIN Airports ao ON f.origin_airport_name = ao.airport_name
+        JOIN Airports ad ON f.destination_airport_name = ad.airport_name
+        ORDER BY f.departure_date DESC, f.departure_time DESC
+    """
+    
+    try:
+        flights = data.sql_query(query)
+    except Exception as e:
+        print(f"Error fetching flights: {str(e)}")
+        flights = []
+    
+    return render_template("manager_dashboard.html", flights=flights)
+
+@app.route("/manager/reports")
+def manager_reports():
+    """Manager reports page - shows analytics and charts"""
+    if not require_user_type(['manager']):
+        return redirect("/manager")
+    
+    # Get all reports data
+    reports_data = reports.get_all_reports()
+    
+    # Create charts
+    charts = reports.create_charts(reports_data)
+    
+    # Prepare data for template
+    return render_template("manager_reports.html",
+                         avg_tickets=reports_data['avg_tickets'],
+                         revenue_by_class=reports_data['revenue_by_class'],
+                         pilots_hours=reports_data['employee_hours']['pilots'],
+                         attendants_hours=reports_data['employee_hours']['attendants'],
+                         charts=charts)
+
+@app.route("/manager/confirm_cancel_flight/<int:flight_id>")
+def confirm_cancel_flight(flight_id):
+    """Confirmation page before cancelling a flight"""
+    if not require_user_type(['manager']):
+        return redirect("/manager")
+    
+    flight = Flight.get_flight_by_id(flight_id, include_all_statuses=True)
+    if not flight:
+        return render_template("error.html", error="Flight not found")
+    
+    # Prepare flight data for template
+    flight_data = {
+        'flight_id': flight.flight_id,
+        'departure_date': flight.departure_date,
+        'departure_time': flight.departure_time,
+        'origin': flight.origin_airport,
+        'destination': flight.destination_airport,
+        'origin_city': flight.origin_city,
+        'destination_city': flight.destination_city
+    }
+    
+    return render_template("confirm_cancel_flight.html", flight=flight_data)
+
+@app.route("/manager/cancel_flight/<int:flight_id>", methods=["POST"])
+def cancel_flight(flight_id):
+    """Cancel a flight"""
+    if not require_user_type(['manager']):
+        return redirect("/manager")
+    
+    flight = Flight.get_flight_by_id(flight_id, include_all_statuses=True)
+    if not flight:
+        return render_template("error.html", error="Flight not found")
+    
+    if flight.status == 'Cancelled':
+        return redirect("/manager/dashboard")
+    
+    # Cancel the flight
+    success, error_msg = flight.cancel_flight()
+    if not success:
+        return render_template("error.html", error=error_msg)
+    
+    return redirect("/manager/dashboard")
 
 @app.route("/logout")
 def logout():

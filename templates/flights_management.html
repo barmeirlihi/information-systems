@@ -122,6 +122,11 @@
     </style>
 </head>
 <body class="centered-page">
+    <div style="position: fixed; top: 20px; left: 20px; z-index: 1000; display: flex; gap: 0.5rem; align-items: center;">
+        <a href="/" style="font-size: 1.2rem; text-decoration: none; display: flex; align-items: center; justify-content: center; padding: 0.4rem 0.8rem; border-radius: 0.4rem; background-color: white; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+            🏠
+        </a>
+    </div>
 
     {% if session.get('user_type') %}
     <div style="position: fixed; top: 20px; right: 20px; z-index: 1000;">
@@ -246,17 +251,18 @@
 
             <div class="crew-section">
                 <h3>Pilots * (Select {{ crew_reqs.pilots }})</h3>
+                {% if available_pilots and available_pilots|length > 0 %}
                 <div class="crew-list">
                     {% for pilot in available_pilots %}
                     <div class="crew-item">
                         <label>
                             <input type="checkbox" name="pilot_ids" value="{{ pilot[0] }}" {% if selected_pilot_ids and pilot[0]|string in selected_pilot_ids %}checked{% endif %}>
                             <span>
-                                {{ pilot[1] }} {{ pilot[2] }} ({{ pilot[0] }})
+                                <strong>{{ pilot[1] }} {{ pilot[2] }}</strong> (ID: {{ pilot[0] }})
                                 {% if pilot[3] == 1 %}
-                                <span style="color: #059669; font-weight: 600;">✓ Long Flight Certified</span>
+                                <span style="color: #059669; font-weight: 600; margin-left: 0.5rem;">✓ Long Flight Certified</span>
                                 {% else %}
-                                <span style="color: #dc2626;">✗ Not Certified for Long Flights</span>
+                                <span style="color: #dc2626; margin-left: 0.5rem;">✗ Not Certified for Long Flights</span>
                                 {% endif %}
                             </span>
                         </label>
@@ -264,8 +270,14 @@
                     {% endfor %}
                 </div>
                 <small style="color: #64748b; display: block; margin-top: 0.5rem;">
-                    Select exactly {{ crew_reqs.pilots }} pilots
+                    Available pilots for this flight. Select exactly {{ crew_reqs.pilots }} pilots.
                 </small>
+                {% else %}
+                <div class="info-message" style="background-color: #fef3c7; color: #92400e; padding: 1rem; border-radius: 0.5rem;">
+                    <strong>No pilots available</strong><br>
+                    No pilots match the requirements for this flight (location and certification).
+                </div>
+                {% endif %}
                 {% if pilot_error %}
                 <div style="color: #dc2626; margin-top: 0.5rem; font-weight: 600;">
                     {{ pilot_error }}
@@ -275,17 +287,18 @@
 
             <div class="crew-section">
                 <h3>Attendants * (Select {{ crew_reqs.attendants }})</h3>
+                {% if available_attendants and available_attendants|length > 0 %}
                 <div class="crew-list">
                     {% for attendant in available_attendants %}
                     <div class="crew-item">
                         <label>
                             <input type="checkbox" name="attendant_ids" value="{{ attendant[0] }}" {% if selected_attendant_ids and attendant[0]|string in selected_attendant_ids %}checked{% endif %}>
                             <span>
-                                {{ attendant[1] }} {{ attendant[2] }} ({{ attendant[0] }})
+                                <strong>{{ attendant[1] }} {{ attendant[2] }}</strong> (ID: {{ attendant[0] }})
                                 {% if attendant[3] == 1 %}
-                                <span style="color: #059669; font-weight: 600;">✓ Long Flight Certified</span>
+                                <span style="color: #059669; font-weight: 600; margin-left: 0.5rem;">✓ Long Flight Certified</span>
                                 {% else %}
-                                <span style="color: #dc2626;">✗ Not Certified for Long Flights</span>
+                                <span style="color: #dc2626; margin-left: 0.5rem;">✗ Not Certified for Long Flights</span>
                                 {% endif %}
                             </span>
                         </label>
@@ -293,8 +306,14 @@
                     {% endfor %}
                 </div>
                 <small style="color: #64748b; display: block; margin-top: 0.5rem;">
-                    Select exactly {{ crew_reqs.attendants }} attendants
+                    Available attendants for this flight. Select exactly {{ crew_reqs.attendants }} attendants.
                 </small>
+                {% else %}
+                <div class="info-message" style="background-color: #fef3c7; color: #92400e; padding: 1rem; border-radius: 0.5rem;">
+                    <strong>No attendants available</strong><br>
+                    No attendants match the requirements for this flight (location and certification).
+                </div>
+                {% endif %}
                 {% if attendant_error %}
                 <div style="color: #dc2626; margin-top: 0.5rem; font-weight: 600;">
                     {{ attendant_error }}

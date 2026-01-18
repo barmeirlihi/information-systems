@@ -29,16 +29,14 @@
     </div>
     {% endif %}
 
-    <div class="hero" style="background: linear-gradient(135deg, #f4a261 0%, #e76f51 100%); background-image: url('{{ url_for('static', filename='images/13DA658A-E61D-4885-BEB7-A6FDA5EB74EB.PNG') }}'); background-blend-mode: overlay;">
+    <div class="hero" style="background: linear-gradient(135deg, #f4a261 0%, #e76f51 100%); background-image: url('{{ url_for('static', filename='images/13DA658A-E61D-4885-BEB7-A6FDA5EB74EB.PNG') }}'); background-blend-mode: overlay; background-position: center 40%; background-size: cover; min-height: 25vh; padding: 1rem;">
         <div class="hero-content">
-            <h1 class="hero-title">
-                YOUR JOURNEY <br>
-                <span>STARTS HERE</span>
-            </h1>
-            <p class="hero-subtitle">
-                FlyTau connects you to the world with the comfort and reliability you deserve.
-            </p>
-
+            <div style="position: relative; display: inline-block;">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="FlyTau Logo" style="max-width: 450px; width: auto; height: auto; display: block;">
+                <h1 class="hero-title" style="color: white; margin-bottom: 2rem; font-size: 2rem; white-space: nowrap; margin-top: -3rem; position: relative;">
+                    YOUR JOURNEY STARTS HERE
+                </h1>
+            </div>
             {% if session.get('user_email') and session.get('user_type') != 'manager' %}
                 <div>
                     <a href="/book_flights" class="btn btn-hero">Start Booking Now &rarr;</a>

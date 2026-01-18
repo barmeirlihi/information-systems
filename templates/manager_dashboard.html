@@ -18,6 +18,15 @@
             display: flex;
             gap: 1rem;
             flex-wrap: wrap;
+            justify-content: center;
+            width: 100%;
+        }
+        .top-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
         }
         .action-btn {
             padding: 0.75rem 1.5rem;
@@ -30,6 +39,8 @@
             cursor: pointer;
             text-decoration: none;
             display: inline-block;
+            min-width: 200px;
+            text-align: center;
         }
         .action-btn:hover {
             background-color: #356789;
@@ -111,9 +122,47 @@
             border-radius: 0.5rem;
             margin-bottom: 1rem;
         }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 2px solid #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        .stat-card h4 {
+            margin: 0 0 0.75rem 0;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .stat-card .stat-value {
+            font-size: 2.5rem;
+            font-weight: 900;
+            color: #1e293b;
+            margin: 0.5rem 0;
+        }
+        .stat-card .stat-label {
+            font-size: 0.875rem;
+            color: #94a3b8;
+            margin-top: 0.5rem;
+        }
     </style>
 </head>
 <body class="centered-page">
+    <div style="position: fixed; top: 20px; left: 20px; z-index: 1000; display: flex; gap: 0.5rem; align-items: center;">
+        <a href="/" style="font-size: 1.2rem; text-decoration: none; display: flex; align-items: center; justify-content: center; padding: 0.4rem 0.8rem; border-radius: 0.4rem; background-color: white; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+            🏠
+        </a>
+    </div>
 
     {% if session.get('user_type') %}
     <div style="position: fixed; top: 20px; right: 20px; z-index: 1000;">
@@ -132,6 +181,11 @@
             </p>
         </div>
 
+        <div class="top-actions">
+            <a href="/flights_management" class="action-btn">Add New Flight</a>
+            <a href="/manager/reports" class="action-btn secondary">Management Reports</a>
+        </div>
+
         {% if error %}
         <div class="error-message">
             {{ error }}
@@ -144,12 +198,37 @@
         </div>
         {% endif %}
 
+        {% if flights %}
+        {% set ns = namespace(active=0, cancelled=0) %}
+        {% for flight in flights %}
+            {% if flight[6] == 'Active' %}
+                {% set ns.active = ns.active + 1 %}
+            {% elif flight[6] == 'Cancelled' %}
+                {% set ns.cancelled = ns.cancelled + 1 %}
+            {% endif %}
+        {% endfor %}
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h4>Total Flights</h4>
+                <div class="stat-value">{{ flights|length }}</div>
+                <div class="stat-label">All flights in system</div>
+            </div>
+            <div class="stat-card">
+                <h4>Active Flights</h4>
+                <div class="stat-value" style="color: #065f46;">{{ ns.active }}</div>
+                <div class="stat-label">Currently active</div>
+            </div>
+            <div class="stat-card">
+                <h4>Cancelled Flights</h4>
+                <div class="stat-value" style="color: #991b1b;">{{ ns.cancelled }}</div>
+                <div class="stat-label">Cancelled flights</div>
+            </div>
+        </div>
+        {% endif %}
+
         <div class="dashboard-header">
             <h3 style="margin: 0;">All Flights</h3>
-            <div class="dashboard-actions">
-                <a href="/flights_management" class="action-btn">Add New Flight</a>
-                <a href="/manager/reports" class="action-btn secondary">Management Reports</a>
-            </div>
         </div>
 
         {% if flights %}
@@ -208,4 +287,3 @@
 
 </body>
 </html>
-
