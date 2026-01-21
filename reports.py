@@ -144,7 +144,6 @@ def get_cancellation_rate_by_month():
     ROUND((SUM(CASE WHEN order_status = 'Cancelled' THEN 1 ELSE 0 END) * 100.0) 
         / COUNT(*), 2) AS Cancellation_Rate_Percent
     FROM Orders
-    WHERE order_status <> 'Cancelled'
     GROUP BY YEAR(order_date), MONTH(order_date)
     ORDER BY Order_Year DESC, Order_Month DESC;
     """
@@ -165,30 +164,51 @@ def get_plane_monthly_activity():
     - Dominant route (most frequent route for that plane in that month)
     """
     query = """
-        SELECT F.plane_id,YEAR(F.departure_date) AS Year, MONTH(F.departure_date) AS Month,
-    -- נתונים רגילים
-    SUM(CASE WHEN F.status = 'Landed' THEN 1 ELSE 0 END) AS Flights_Executed,
-    SUM(CASE WHEN F.status = 'Cancelled' THEN 1 ELSE 0 END) AS Flights_Cancelled,
-    -- חישוב ניצולת 
+        WITH Flights_By_Month AS (
+    SELECT flight_id, plane_id, origin_airport_name, destination_airport_name, status,
+        DATE(departure_date) AS dep_date,
+        YEAR(departure_date) AS dep_year,
+        MONTH(departure_date) AS dep_month
+    FROM Flights
+)
+
+SELECT fbm.plane_id, fbm.dep_year AS Year, fbm.dep_month AS Month,
+    SUM(CASE WHEN fbm.status = 'Landed' THEN 1 ELSE 0 END) AS Flights_Executed,
+    SUM(CASE WHEN fbm.status = 'Cancelled' THEN 1 ELSE 0 END) AS Flights_Cancelled,
     ROUND(
-        (SUM(CASE WHEN F.status = 'Landed' THEN FR.flight_duration ELSE 0 END) * 100.0) 
-        / 43200, 
-    2) AS Utilization_Percent,
-    -- מציאת המסלול השולט (לפי כל הטיסות שבוצעו)
+        COUNT(DISTINCT CASE 
+            WHEN fbm.status = 'Landed' THEN fbm.dep_date
+        END) * 100.0 / 30, 2) AS Utilization_Percent,
     (
-        SELECT CONCAT(inner_F.origin_airport_name, ' -> ', inner_F.destination_airport_name)
-        FROM Flights inner_F
-        WHERE inner_F.plane_id = F.plane_id
-          AND inner_F.status = 'Landed'
-        GROUP BY inner_F.origin_airport_name, inner_F.destination_airport_name
-        ORDER BY COUNT(*) DESC  -- סדר לפי הכמות הגבוהה ביותר
-        LIMIT 1
-    ) AS Dominant_Route
-FROM Flights F
-    JOIN FlightRoutes FR ON F.origin_airport_name = FR.origin_airport_name 
-		AND F.destination_airport_name = FR.destination_airport_name
-GROUP BY F.plane_id, YEAR(F.departure_date), MONTH(F.departure_date)
-ORDER BY F.plane_id, Year, Month;
+        SELECT GROUP_CONCAT(route SEPARATOR ', ')
+        FROM (
+            SELECT 
+                CONCAT(f2.origin_airport_name, ' -> ', f2.destination_airport_name) AS route
+            FROM Flights_By_Month f2
+            WHERE f2.plane_id = fbm.plane_id
+              AND f2.dep_year = fbm.dep_year
+              AND f2.dep_month = fbm.dep_month
+              AND f2.status = 'Landed'
+            GROUP BY f2.origin_airport_name, f2.destination_airport_name
+            HAVING COUNT(*) = (
+                SELECT MAX(cnt)
+                FROM (
+                    SELECT COUNT(*) AS cnt
+                    FROM Flights_By_Month f3
+                    WHERE f3.plane_id = fbm.plane_id
+                      AND f3.dep_year = fbm.dep_year
+                      AND f3.dep_month = fbm.dep_month
+                      AND f3.status = 'Landed'
+                    GROUP BY f3.origin_airport_name, f3.destination_airport_name
+                ) AS route_counts
+            )
+        ) AS dominant_routes
+    ) AS Dominant_Routes
+
+FROM Flights_By_Month fbm
+GROUP BY fbm.plane_id, fbm.dep_year, fbm.dep_month
+HAVING SUM(CASE WHEN fbm.status = 'Landed' THEN 1 ELSE 0 END) > 0
+ORDER BY fbm.plane_id, Year, Month;
     """
     try:
         result = data.sql_query(query)
@@ -248,61 +268,74 @@ def create_charts(reports_data):
     
     
     # Chart 4: Cancellation rate by month (line chart)
-    if reports_data['cancellation_rates']:
-        df = pd.DataFrame(reports_data['cancellation_rates'],
+    if reports_data['cancellation_rates'] and len(reports_data['cancellation_rates']) > 0:
+        # Convert to DataFrame - handle both list of tuples and list of lists
+        data_list = reports_data['cancellation_rates']
+        df = pd.DataFrame(data_list,
                          columns=['Order_Year', 'Order_Month', 'Cancellation_Rate_Percent'])
+        
         # Convert to numeric first
         df['Order_Year'] = pd.to_numeric(df['Order_Year'], errors='coerce')
         df['Order_Month'] = pd.to_numeric(df['Order_Month'], errors='coerce')
-        # Create date string and convert to datetime
-        df['Date'] = pd.to_datetime(df['Order_Year'].astype(str) + '-' + 
-                                    df['Order_Month'].astype(str) + '-01')
-        df = df.sort_values('Date')
+        df['Cancellation_Rate_Percent'] = pd.to_numeric(df['Cancellation_Rate_Percent'], errors='coerce')
         
-        # Create a complete date range from first date to end of 2026
+        # Remove any rows with NaN values
+        df = df.dropna()
+        
         if len(df) > 0:
+            # Sort by year and month (ascending for chronological order)
+            df = df.sort_values(['Order_Year', 'Order_Month'])
+            
+            # Create date objects for proper x-axis scaling
+            df['Date'] = pd.to_datetime(df['Order_Year'].astype(int).astype(str) + '-' + 
+                                       df['Order_Month'].astype(int).astype(str) + '-01')
+            
+            # Filter only rows with cancellation rate > 0
+            df_non_zero = df[df['Cancellation_Rate_Percent'] > 0].copy()
+            
+            # Create complete date range from first date to last date
             min_date = df['Date'].min()
-            max_date = pd.to_datetime('2026-12-01')
+            max_date = df['Date'].max()
             # Generate all months in the range
             date_range = pd.date_range(start=min_date, end=max_date, freq='MS')
-            # Create a complete dataframe with all months
-            complete_df = pd.DataFrame({'Date': date_range})
-            # Merge with actual data
-            df_complete = complete_df.merge(df[['Date', 'Cancellation_Rate_Percent']], 
-                                          on='Date', how='left')
-            df_complete['Cancellation_Rate_Percent'] = df_complete['Cancellation_Rate_Percent'].fillna(0)
-        else:
-            df_complete = df
-        
-        plt.figure(figsize=(14, 4))
-        # Draw vertical lines from points to X-axis
-        for date, rate in zip(df_complete['Date'], df_complete['Cancellation_Rate_Percent']):
-            plt.plot([date, date], [0, rate], color='#c5283d', alpha=0.3, linewidth=0.8, linestyle='--', zorder=1)
-        # Plot points
-        plt.scatter(df_complete['Date'], df_complete['Cancellation_Rate_Percent'], 
-                   s=80, color='#c5283d', marker='o', edgecolors='white', linewidths=2, zorder=3)
-        plt.xlabel('Date', fontsize=12, fontweight='bold', fontfamily='DejaVu Sans')
-        plt.ylabel('Cancellation Rate (%)', fontsize=12, fontweight='bold', fontfamily='DejaVu Sans')
-        plt.title('Cancellation Rate by Month', fontsize=14, fontweight='bold', fontfamily='DejaVu Sans')
-        plt.grid(alpha=0.3, linestyle='--', linewidth=0.8)
-        plt.ylim(bottom=0)
-        # Format x-axis to show year-month
-        ax = plt.gca()
-        # Use MonthLocator for monthly ticks
-        from matplotlib.dates import MonthLocator, DateFormatter
-        ax.xaxis.set_major_locator(MonthLocator(interval=1))
-        ax.xaxis.set_major_formatter(DateFormatter('%Y-%m'))
-        plt.xticks(rotation=45, ha='right')
-        # Set font for all tick labels
-        for label in ax.get_xticklabels():
-            label.set_fontfamily('DejaVu Sans')
-        for label in ax.get_yticklabels():
-            label.set_fontfamily('DejaVu Sans')
-        plt.tight_layout()
-        chart_path = f"{charts_dir}/chart4_cancellation_rate.png"
-        plt.savefig(chart_path, dpi=100, bbox_inches='tight')
-        plt.close()
-        charts['cancellation_rates'] = chart_path.replace('static/', '')
+            
+            plt.figure(figsize=(14, 6))
+            
+            # Plot vertical lines only for data points with cancellation rate > 0 (no connecting line)
+            if len(df_non_zero) > 0:
+                # Draw vertical lines from each point to X-axis
+                for date, rate in zip(df_non_zero['Date'], df_non_zero['Cancellation_Rate_Percent']):
+                    plt.plot([date, date], [0, rate], 
+                            color='#c5283d', linewidth=2, zorder=3)
+                # Plot points at the top of each vertical line
+                plt.scatter(df_non_zero['Date'], df_non_zero['Cancellation_Rate_Percent'], 
+                           s=60, color='#c5283d', marker='o', edgecolors='white', linewidths=1.5, zorder=4)
+            
+            plt.xlabel('Month', fontsize=12, fontweight='bold', fontfamily='DejaVu Sans')
+            plt.ylabel('Cancellation Rate (%)', fontsize=12, fontweight='bold', fontfamily='DejaVu Sans')
+            plt.title('Cancellation Rate by Month', fontsize=14, fontweight='bold', fontfamily='DejaVu Sans')
+            plt.grid(alpha=0.3, linestyle='--', linewidth=0.8)
+            plt.ylim(bottom=0)
+            
+            # Format x-axis to show all months
+            ax = plt.gca()
+            from matplotlib.dates import DateFormatter, MonthLocator
+            # Set x-axis to show all months in range
+            ax.xaxis.set_major_locator(MonthLocator(interval=1))
+            ax.xaxis.set_major_formatter(DateFormatter('%m/%Y'))
+            plt.xticks(rotation=45, ha='right')
+            
+            # Set font for all tick labels
+            for label in ax.get_xticklabels():
+                label.set_fontfamily('DejaVu Sans')
+            for label in ax.get_yticklabels():
+                label.set_fontfamily('DejaVu Sans')
+            
+            plt.tight_layout()
+            chart_path = f"{charts_dir}/chart4_cancellation_rate.png"
+            plt.savefig(chart_path, dpi=100, bbox_inches='tight')
+            plt.close()
+            charts['cancellation_rates'] = chart_path.replace('static/', '')
     
     # Chart 5: Plane activity dashboard
     if reports_data['plane_activity']:
@@ -329,21 +362,34 @@ def create_charts(reports_data):
         gs = fig.add_gridspec(1, 3, width_ratios=[1.2, 1.2, 1.6], wspace=0.4)  # Enlarged right graph and shifted left
         
         # 1. Grouped vertical bar chart for flights (Plane ID on X-axis)
+        # Use separate query data for this chart
         ax1 = fig.add_subplot(gs[0, 0])
-        planes = df_agg['Plane_ID'].astype(str)
-        executed = df_agg['Flights_Executed'].astype(int)
-        cancelled = df_agg['Flights_Cancelled'].astype(int)
+        if reports_data.get('flights_by_plane') and len(reports_data['flights_by_plane']) > 0:
+            df_flights = pd.DataFrame(reports_data['flights_by_plane'],
+                                     columns=['Plane_ID', 'Flights_Executed', 'Flights_Cancelled'])
+            df_flights['Plane_ID'] = pd.to_numeric(df_flights['Plane_ID'], errors='coerce')
+            df_flights['Flights_Executed'] = pd.to_numeric(df_flights['Flights_Executed'], errors='coerce').fillna(0)
+            df_flights['Flights_Cancelled'] = pd.to_numeric(df_flights['Flights_Cancelled'], errors='coerce').fillna(0)
+            df_flights = df_flights.sort_values('Plane_ID')
+            planes_chart1 = df_flights['Plane_ID'].astype(str)
+            executed_chart1 = df_flights['Flights_Executed'].astype(int)
+            cancelled_chart1 = df_flights['Flights_Cancelled'].astype(int)
+        else:
+            # Fallback to aggregated data if new query fails
+            planes_chart1 = df_agg['Plane_ID'].astype(str)
+            executed_chart1 = df_agg['Flights_Executed'].astype(int)
+            cancelled_chart1 = df_agg['Flights_Cancelled'].astype(int)
         
-        x_pos = range(len(planes))
+        x_pos_chart1 = range(len(planes_chart1))
         width = 0.35  # Width of bars
-        x1 = [x - width/2 for x in x_pos]
-        x2 = [x + width/2 for x in x_pos]
+        x1 = [x - width/2 for x in x_pos_chart1]
+        x2 = [x + width/2 for x in x_pos_chart1]
         
-        ax1.bar(x1, executed, width, label='Flights Executed', color='#215E61', edgecolor='black', linewidth=0.5)
-        ax1.bar(x2, cancelled, width, label='Flights Cancelled', color='#9E2A3A', edgecolor='black', linewidth=0.5)
+        ax1.bar(x1, executed_chart1, width, label='Flights Executed', color='#215E61', edgecolor='black', linewidth=0.5)
+        ax1.bar(x2, cancelled_chart1, width, label='Flights Cancelled', color='#9E2A3A', edgecolor='black', linewidth=0.5)
         
-        ax1.set_xticks(x_pos)
-        ax1.set_xticklabels(planes, fontfamily='DejaVu Sans')
+        ax1.set_xticks(x_pos_chart1)
+        ax1.set_xticklabels(planes_chart1, fontfamily='DejaVu Sans')
         ax1.set_xlabel('Plane ID', fontsize=12, fontweight='bold', fontfamily='DejaVu Sans')
         ax1.set_ylabel('Number of Flights', fontsize=12, fontweight='bold', fontfamily='DejaVu Sans')
         ax1.set_title('Monthly Flight Activity by Plane', fontsize=14, fontweight='bold', fontfamily='DejaVu Sans', pad=15)
@@ -364,13 +410,16 @@ def create_charts(reports_data):
         ax2 = fig.add_subplot(gs[0, 1])
         utilization = df_agg['Utilization_Percent'].clip(0, 100)
         
-        # Determine max utilization for better scaling - cap at 4%
-        max_util = max(utilization.max(), 0.1) if len(utilization) > 0 else 4
-        y_max = min(max_util * 1.2, 4)  # Add 20% padding but cap at 4%
+        # Set y-axis to always show 0-100%
+        y_max = 100
+        
+        # Use planes from df_agg for this chart
+        planes_chart2 = df_agg['Plane_ID'].astype(str)
+        x_pos_chart2 = range(len(planes_chart2))
         
         # Create vertical bar chart for utilization - New palette
         colors_util = ['#ffc857' if u >= 50 else '#e9724c' if u >= 25 else '#ABDADC' for u in utilization]
-        bars = ax2.bar(x_pos, utilization, color=colors_util, width=0.6, edgecolor='black', linewidth=0.5)
+        bars = ax2.bar(x_pos_chart2, utilization, color=colors_util, width=0.6, edgecolor='black', linewidth=0.5)
         
         # Add percentage labels on bars (always visible)
         for i, (bar, util) in enumerate(zip(bars, utilization)):
@@ -379,8 +428,8 @@ def create_charts(reports_data):
             ax2.text(bar.get_x() + bar.get_width()/2, label_y, 
                     f'{util:.2f}%', ha='center', va='bottom', fontsize=10, fontweight='bold', fontfamily='DejaVu Sans')
         
-        ax2.set_xticks(x_pos)
-        ax2.set_xticklabels(planes, fontfamily='DejaVu Sans')
+        ax2.set_xticks(x_pos_chart2)
+        ax2.set_xticklabels(planes_chart2, fontfamily='DejaVu Sans')
         ax2.set_xlabel('Plane ID', fontsize=12, fontweight='bold', fontfamily='DejaVu Sans')
         ax2.set_ylabel('Utilization (%)', fontsize=12, fontweight='bold', fontfamily='DejaVu Sans')
         ax2.set_title('Monthly Utilization Rate', fontsize=14, fontweight='bold', fontfamily='DejaVu Sans', pad=15)
@@ -408,15 +457,21 @@ def create_charts(reports_data):
         
         # Only create table if there's data
         if table_data:
-            # Create table - improved design with centered text and shifted left
+            # Create table - improved design with centered text and wider columns
             table = ax3.table(cellText=table_data,
                              colLabels=['Plane', 'Route'],
                              cellLoc='center',  # Changed from 'left' to 'center'
                              loc='center',
-                             bbox=[0.05, 0, 0.9, 1])  # Shifted left: [left, bottom, width, height] - left margin 0.05, width 0.9 leaves right margin
+                             bbox=[0.02, 0, 0.96, 1])  # Wider table: [left, bottom, width, height] - reduced margins for more width
             table.auto_set_font_size(False)
             table.set_fontsize(16)
-            table.scale(1, 3.2)
+            table.scale(1.8, 3.2)  # Increased horizontal scale to make columns wider (was 1, now 1.8)
+            # Set column widths - make Plane column wider
+            col_widths = [0.3, 0.7]  # Plane column 30%, Route column 70%
+            for i in range(2):
+                for j in range(len(table_data) + 1):
+                    cell = table[(j, i)]
+                    cell.set_width(col_widths[i])
             
             # Style table with improved design
             for i in range(len(table_data) + 1):
@@ -499,6 +554,28 @@ def get_total_passengers():
         return 0
 
 
+def get_flights_by_plane():
+    """
+    Returns flights executed and cancelled by plane (for chart display only)
+    This is a separate query specifically for the left chart in plane activity dashboard
+    """
+    query = """
+        SELECT 
+            plane_id,
+            SUM(CASE WHEN status = 'Landed' THEN 1 ELSE 0 END) AS Flights_Executed,
+            SUM(CASE WHEN status = 'Cancelled' THEN 1 ELSE 0 END) AS Flights_Cancelled
+        FROM Flights
+        GROUP BY plane_id
+        ORDER BY plane_id;
+    """
+    try:
+        result = data.sql_query(query)
+        return result if result else []
+    except Exception as e:
+        print(f"Error in get_flights_by_plane: {str(e)}")
+        return []
+
+
 def get_all_reports():
     """
     Executes all report queries and returns a dictionary with all report data
@@ -509,6 +586,7 @@ def get_all_reports():
         'employee_hours': get_employee_flight_hours(),
         'cancellation_rates': get_cancellation_rate_by_month(),
         'plane_activity': get_plane_monthly_activity(),
+        'flights_by_plane': get_flights_by_plane(),  # New query for left chart
         'total_orders': get_total_orders(),
         'active_flights': get_active_flights(),
         'total_passengers': get_total_passengers()
