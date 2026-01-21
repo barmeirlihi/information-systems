@@ -65,7 +65,6 @@ def login():
 @app.route("/sign_up", methods=["POST", "GET"])
 def sign_up():
     if request.method == "POST":
-        # קליטת נתונים
         email = request.form.get("email")
         password = request.form.get("password")
         first_name = request.form.get("first_name")
@@ -1399,6 +1398,141 @@ def cancel_flight(flight_id):
         return render_template("error.html", error=error_msg)
     
     return redirect("/manager/dashboard")
+
+@app.route("/manager/add_employee", methods=["GET", "POST"])
+def add_employee():
+    """Add a new employee (Attendant or Pilot)"""
+    if not require_user_type(['manager']):
+        return redirect("/manager?error=Access denied. Please log in as manager")
+    
+    if request.method == "POST":
+        employee_role = request.form.get("employee_role")
+        employee_id = request.form.get("employee_id")
+        first_name_he = request.form.get("first_name_he")
+        last_name_he = request.form.get("last_name_he")
+        phone_number = request.form.get("phone_number")
+        city = request.form.get("city")
+        street = request.form.get("street")
+        house_number = request.form.get("house_number")
+        start_work_date = request.form.get("start_work_date")
+        long_flight_certified = request.form.get("long_flight_certified")
+        
+        # Validate all fields are provided
+        if not all([employee_role, employee_id, first_name_he, last_name_he, phone_number, 
+                   city, street, house_number, start_work_date]):
+            return render_template("add_employee.html",
+                                 error="Please fill all required fields",
+                                 employee_role=employee_role or "",
+                                 employee_id=employee_id or "",
+                                 first_name_he=first_name_he or "",
+                                 last_name_he=last_name_he or "",
+                                 phone_number=phone_number or "",
+                                 city=city or "",
+                                 street=street or "",
+                                 house_number=house_number or "",
+                                 start_work_date=start_work_date or "",
+                                 long_flight_certified=long_flight_certified or "0")
+        
+        # Validate employee role
+        if employee_role not in ['Attendant', 'Pilot']:
+            return render_template("add_employee.html",
+                                 error="Invalid employee role. Please select Attendant or Pilot",
+                                 employee_role=employee_role,
+                                 employee_id=employee_id,
+                                 first_name_he=first_name_he,
+                                 last_name_he=last_name_he,
+                                 phone_number=phone_number,
+                                 city=city,
+                                 street=street,
+                                 house_number=house_number,
+                                 start_work_date=start_work_date,
+                                 long_flight_certified=long_flight_certified or "0")
+        
+        # Convert long_flight_certified to 0 or 1
+        # If checkbox is not checked, it won't be in the form data, so it defaults to 0
+        long_flight_certified_int = 1 if long_flight_certified == "1" else 0
+        
+        # Check if employee ID already exists in the appropriate table
+        if employee_role == 'Attendant':
+            existing_employee = data.sql_query("SELECT attendant_id FROM Attendants WHERE attendant_id = %s", employee_id)
+            table_name = "Attendants"
+            id_column = "attendant_id"
+        else:  # Pilot
+            existing_employee = data.sql_query("SELECT pilot_id FROM Pilots WHERE pilot_id = %s", employee_id)
+            table_name = "Pilots"
+            id_column = "pilot_id"
+        
+        if existing_employee:
+            return render_template("add_employee.html",
+                                 error=f"{employee_role} with ID {employee_id} already exists",
+                                 employee_role=employee_role,
+                                 employee_id=employee_id,
+                                 first_name_he=first_name_he,
+                                 last_name_he=last_name_he,
+                                 phone_number=phone_number,
+                                 city=city,
+                                 street=street,
+                                 house_number=house_number,
+                                 start_work_date=start_work_date,
+                                 long_flight_certified=long_flight_certified)
+        
+        # Insert employee into database
+        try:
+            if employee_role == 'Attendant':
+                data.sql_insert(
+                    """INSERT INTO Attendants (attendant_id, first_name_he, last_name_he, phone_number, 
+                       city, street, house_number, start_work_date, long_flight_certified) 
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                    employee_id, first_name_he, last_name_he, phone_number,
+                    city, street, house_number, start_work_date, long_flight_certified_int
+                )
+            else:  # Pilot
+                data.sql_insert(
+                    """INSERT INTO Pilots (pilot_id, first_name_he, last_name_he, phone_number, 
+                       city, street, house_number, start_work_date, long_flight_certified) 
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                    employee_id, first_name_he, last_name_he, phone_number,
+                    city, street, house_number, start_work_date, long_flight_certified_int
+                )
+            
+            return render_template("add_employee.html",
+                                 success=True,
+                                 employee_role="",
+                                 employee_id="",
+                                 first_name_he="",
+                                 last_name_he="",
+                                 phone_number="",
+                                 city="",
+                                 street="",
+                                 house_number="",
+                                 start_work_date="",
+                                 long_flight_certified="0")
+        except Exception as e:
+            return render_template("add_employee.html",
+                                 error=f"Error adding employee: {str(e)}",
+                                 employee_role=employee_role,
+                                 employee_id=employee_id,
+                                 first_name_he=first_name_he,
+                                 last_name_he=last_name_he,
+                                 phone_number=phone_number,
+                                 city=city,
+                                 street=street,
+                                 house_number=house_number,
+                                 start_work_date=start_work_date,
+                                 long_flight_certified=long_flight_certified)
+    
+    # GET request - show form
+    return render_template("add_employee.html",
+                         employee_role="",
+                         employee_id="",
+                         first_name_he="",
+                         last_name_he="",
+                         phone_number="",
+                         city="",
+                         street="",
+                         house_number="",
+                         start_work_date="",
+                         long_flight_certified="0")
 
 @app.route("/logout")
 def logout():
