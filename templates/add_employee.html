@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Employee - FlyTau</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #334155;
+        }
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+        }
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: #669bbc;
+        }
+        .error-message {
+            background-color: #fee2e2;
+            color: #991b1b;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .success-message {
+            background-color: #d1fae5;
+            color: #065f46;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        button[type="submit"] {
+            width: 100%;
+            padding: 1rem;
+            background-color: #669bbc;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 1rem;
+        }
+        button[type="submit"]:hover {
+            background-color: #356789;
+        }
+        .back-btn {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background-color: #64748b;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            margin-top: 1rem;
+        }
+        .back-btn:hover {
+            background-color: #475569;
+        }
+        .address-section {
+            border: 2px solid #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            background-color: #f8fafc;
+        }
+        .address-section h3 {
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: #1e293b;
+            font-size: 1.1rem;
+        }
+        .radio-group {
+            display: flex;
+            gap: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .radio-option {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .radio-option input[type="radio"] {
+            width: auto;
+            margin: 0;
+        }
+        .radio-option label {
+            margin: 0;
+            font-weight: 500;
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+        }
+        .checkbox-group label {
+            margin: 0;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body class="centered-page">
+    <div style="position: fixed; top: 20px; left: 20px; z-index: 1000; display: flex; gap: 0.5rem; align-items: center;">
+        <a href="/" style="font-size: 1.2rem; text-decoration: none; display: flex; align-items: center; justify-content: center; padding: 0.4rem 0.8rem; border-radius: 0.4rem; background-color: white; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+            🏠
+        </a>
+    </div>
+
+    {% if session.get('user_type') %}
+    <div style="position: fixed; top: 20px; right: 20px; z-index: 1000;">
+        <a href="/logout" style="background-color: #ef4444; color: white; padding: 0.4rem 0.8rem; border-radius: 0.4rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+            Logout
+        </a>
+    </div>
+    {% endif %}
+
+    <div class="card" style="max-width: 700px;">
+        <div style="text-align: center; margin-bottom: 2.5rem;">
+            <div class="icon-circle" style="background-color: #f1f5f9;">👤</div>
+            <h2 style="font-weight: 900; font-size: 1.8rem; letter-spacing: -1px; text-transform: uppercase;">Add Employee</h2>
+            <p style="font-size: 0.8rem; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; color: #94a3b8;">
+                Add New Employee to System
+            </p>
+        </div>
+
+        {% if error %}
+        <div class="error-message">
+            {{ error }}
+        </div>
+        {% endif %}
+
+        {% if success %}
+        <div class="success-message">
+            Employee added successfully to the system!
+        </div>
+        {% endif %}
+
+        <form method="POST" action="/manager/add_employee">
+            <div class="form-group">
+                <label>Employee Role *</label>
+                <div class="radio-group">
+                    <div class="radio-option">
+                        <input type="radio" id="role_attendant" name="employee_role" value="Attendant" {% if employee_role == 'Attendant' %}checked{% endif %} required>
+                        <label for="role_attendant">Attendant</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" id="role_pilot" name="employee_role" value="Pilot" {% if employee_role == 'Pilot' %}checked{% endif %} required>
+                        <label for="role_pilot">Pilot</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="employee_id">ID Number *</label>
+                <input type="text" id="employee_id" name="employee_id" value="{{ employee_id }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="first_name_he">First Name (Hebrew) *</label>
+                <input type="text" id="first_name_he" name="first_name_he" value="{{ first_name_he }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="last_name_he">Last Name (Hebrew) *</label>
+                <input type="text" id="last_name_he" name="last_name_he" value="{{ last_name_he }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="phone_number">Phone Number *</label>
+                <input type="text" id="phone_number" name="phone_number" value="{{ phone_number }}" required>
+            </div>
+
+            <div class="address-section">
+                <h3>Residential Address</h3>
+                <div class="form-group">
+                    <label for="city">City *</label>
+                    <input type="text" id="city" name="city" value="{{ city }}" required>
+                </div>
+                <div class="form-group">
+                    <label for="street">Street *</label>
+                    <input type="text" id="street" name="street" value="{{ street }}" required>
+                </div>
+                <div class="form-group">
+                    <label for="house_number">House Number *</label>
+                    <input type="text" id="house_number" name="house_number" value="{{ house_number }}" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="start_work_date">Start Work Date *</label>
+                <input type="date" id="start_work_date" name="start_work_date" value="{{ start_work_date }}" required>
+            </div>
+
+            <div class="form-group">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="long_flight_certified" name="long_flight_certified" value="1" {% if long_flight_certified == '1' %}checked{% endif %}>
+                    <label for="long_flight_certified">Long Flight Certified</label>
+                </div>
+            </div>
+
+            <button type="submit">Add Employee</button>
+        </form>
+
+        <div style="text-align: center; margin-top: 2rem;">
+            <a href="/manager/dashboard" class="back-btn">Back to Dashboard</a>
+        </div>
+    </div>
+
+</body>
+</html>
+

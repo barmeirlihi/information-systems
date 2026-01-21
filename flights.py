@@ -248,6 +248,8 @@ class Flight(ABC):
             'BCN': 'https://images.unsplash.com/photo-1539037116277-4db20889f2d4?auto=format&fit=crop&q=80&w=800',
             'BKK': 'https://www.elal.com/magazine/wp-content/uploads/2017/01/ThinkstockPhotos-480903890.jpg',
             'FCO': 'https://www.in-italy.co.il/upload1/rome1.jpg',
+            'NRT': 'https://www.elal.com/magazine/wp-content/uploads/2019/11/shutterstock_1030169917.jpg',
+            'HND': 'https://www.elal.com/magazine/wp-content/uploads/2019/11/shutterstock_1030169917.jpg',
         }
         default_image = 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&q=80&w=800'
         return destination_images.get(self.destination_airport, default_image)
@@ -502,6 +504,8 @@ def get_destination_image(destination_code):
         'JFK': 'https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?auto=format&fit=crop&q=80&w=800',
         'LHR': 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&q=80&w=800',
         'CDG': 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&q=80&w=800',
+        'NRT': 'https://www.elal.com/magazine/wp-content/uploads/2019/11/shutterstock_1030169917.jpg',
+        'HND': 'https://www.elal.com/magazine/wp-content/uploads/2019/11/shutterstock_1030169917.jpg',
     }
     default_image = 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&q=80&w=800'
     return destination_images.get(destination_code, default_image)

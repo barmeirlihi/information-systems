@@ -51,7 +51,15 @@
         </div>
     </div>
 
-    {% if not session.get('user_email') %}
+    {% if error %}
+    <div style="max-width: 1200px; margin: 2rem auto; padding: 0 1rem;">
+        <div class="error-msg" style="border-left: 4px solid #ef4444; text-align: left; font-weight: bold; background-color: #fef2f2; color: #b91c1c; padding: 1rem; border-radius: 0.5rem;">
+            {{ error }}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if not session.get('user_email') and session.get('user_type') != 'manager' %}
     <section class="features-section">
         <div class="section-title">
             <h2>Identify Your Journey</h2>

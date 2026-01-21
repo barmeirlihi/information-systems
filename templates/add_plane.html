@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Plane - FlyTau</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #334155;
+        }
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+        }
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: #669bbc;
+        }
+        .error-message {
+            background-color: #fee2e2;
+            color: #991b1b;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .success-message {
+            background-color: #d1fae5;
+            color: #065f46;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .info-message {
+            background-color: #dbeafe;
+            color: #1e40af;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        button[type="submit"] {
+            width: 100%;
+            padding: 1rem;
+            background-color: #669bbc;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 1rem;
+        }
+        button[type="submit"]:hover {
+            background-color: #356789;
+        }
+        .back-btn {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background-color: #64748b;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            margin-top: 1rem;
+        }
+        .back-btn:hover {
+            background-color: #475569;
+        }
+        .seat-section {
+            border: 2px solid #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            background-color: #f8fafc;
+        }
+        .seat-section h3 {
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: #1e293b;
+            font-size: 1.1rem;
+        }
+        .step-indicator {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            font-size: 0.875rem;
+            color: #64748b;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="centered-page">
+    <div style="position: fixed; top: 20px; left: 20px; z-index: 1000; display: flex; gap: 0.5rem; align-items: center;">
+        <a href="/" style="font-size: 1.2rem; text-decoration: none; display: flex; align-items: center; justify-content: center; padding: 0.4rem 0.8rem; border-radius: 0.4rem; background-color: white; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+            🏠
+        </a>
+    </div>
+
+    {% if session.get('user_type') %}
+    <div style="position: fixed; top: 20px; right: 20px; z-index: 1000;">
+        <a href="/logout" style="background-color: #ef4444; color: white; padding: 0.4rem 0.8rem; border-radius: 0.4rem; text-decoration: none; font-weight: bold; font-size: 0.875rem;">
+            Logout
+        </a>
+    </div>
+    {% endif %}
+
+    <div class="card" style="max-width: 700px;">
+        <div style="text-align: center; margin-bottom: 2.5rem;">
+            <div class="icon-circle" style="background-color: #f1f5f9;">✈️</div>
+            <h2 style="font-weight: 900; font-size: 1.8rem; letter-spacing: -1px; text-transform: uppercase;">Add Plane</h2>
+            <p style="font-size: 0.8rem; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; color: #94a3b8;">
+                Add New Aircraft to Fleet
+            </p>
+        </div>
+
+        {% if step == 1 %}
+        <div class="step-indicator">Step 1 of 2: Plane Details</div>
+        {% elif step == 2 %}
+        <div class="step-indicator">Step 2 of 2: Seat Configuration</div>
+        {% elif step == 3 %}
+        <div class="step-indicator">Complete</div>
+        {% endif %}
+
+        {% if error %}
+        <div class="error-message">
+            {{ error }}
+        </div>
+        {% endif %}
+
+        {% if success and step == 3 %}
+        <div class="success-message">
+            <strong>Success!</strong> Plane ID {{ plane_id }} has been added to the fleet with all seats configured.
+        </div>
+        {% endif %}
+
+        {% if step == 1 %}
+        <!-- Step 1: Basic plane details -->
+        <form method="POST" action="/manager/add_plane?step=1">
+            <div class="form-group">
+                <label for="plane_id">Plane ID *</label>
+                <input type="number" id="plane_id" name="plane_id" value="{{ plane_id }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="manufacturer">Manufacturer *</label>
+                <select id="manufacturer" name="manufacturer" required>
+                    <option value="">Select Manufacturer</option>
+                    <option value="Boeing" {% if manufacturer == 'Boeing' %}selected{% endif %}>Boeing</option>
+                    <option value="Airbus" {% if manufacturer == 'Airbus' %}selected{% endif %}>Airbus</option>
+                    <option value="Dassault" {% if manufacturer == 'Dassault' %}selected{% endif %}>Dassault</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="size">Size *</label>
+                <select id="size" name="size" required>
+                    <option value="">Select Size</option>
+                    <option value="Large" {% if size == 'Large' %}selected{% endif %}>Large</option>
+                    <option value="Small" {% if size == 'Small' %}selected{% endif %}>Small</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="purchase_date">Purchase Date *</label>
+                <input type="date" id="purchase_date" name="purchase_date" value="{{ purchase_date }}" required>
+            </div>
+
+            <button type="submit">Continue to Seat Configuration</button>
+        </form>
+
+        {% elif step == 2 %}
+        <!-- Step 2: Seat configuration -->
+        <div class="info-message">
+            Plane ID: <strong>{{ plane_id }}</strong> | Size: <strong>{{ size }}</strong> | Manufacturer: <strong>{{ manufacturer }}</strong>
+        </div>
+
+        <form method="POST" action="/manager/add_plane?step=2">
+            <input type="hidden" name="plane_id" value="{{ plane_id }}">
+            <input type="hidden" name="size" value="{{ size }}">
+            <input type="hidden" name="manufacturer" value="{{ manufacturer }}">
+            <input type="hidden" name="purchase_date" value="{{ purchase_date }}">
+
+            {% if size == 'Small' %}
+            <!-- Small plane: Only Economy class -->
+            <div class="seat-section">
+                <h3>Economy Class</h3>
+                <div class="form-group">
+                    <label for="economy_rows">Number of Rows *</label>
+                    <input type="number" id="economy_rows" name="economy_rows" value="{{ economy_rows }}" min="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="economy_seats_per_row">Seats per Row *</label>
+                    <input type="number" id="economy_seats_per_row" name="economy_seats_per_row" value="{{ economy_seats_per_row }}" min="1" required>
+                </div>
+            </div>
+
+            {% else %}
+            <!-- Large plane: Business and Economy classes -->
+            <div class="seat-section">
+                <h3>Business Class</h3>
+                <div class="form-group">
+                    <label for="business_rows">Number of Rows *</label>
+                    <input type="number" id="business_rows" name="business_rows" value="{{ business_rows }}" min="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="business_seats_per_row">Seats per Row *</label>
+                    <input type="number" id="business_seats_per_row" name="business_seats_per_row" value="{{ business_seats_per_row }}" min="1" required>
+                </div>
+            </div>
+
+            <div class="seat-section">
+                <h3>Economy Class</h3>
+                <div class="form-group">
+                    <label for="economy_rows">Number of Rows *</label>
+                    <input type="number" id="economy_rows" name="economy_rows" value="{{ economy_rows }}" min="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="economy_seats_per_row">Seats per Row *</label>
+                    <input type="number" id="economy_seats_per_row" name="economy_seats_per_row" value="{{ economy_seats_per_row }}" min="1" required>
+                </div>
+            </div>
+            {% endif %}
+
+            <button type="submit">Add Plane and Seats</button>
+        </form>
+
+        {% elif step == 3 %}
+        <!-- Step 3: Success message -->
+        <div style="text-align: center; padding: 2rem 0;">
+            <p style="font-size: 1.1rem; color: #334155; margin-bottom: 2rem;">
+                The plane has been successfully added to the fleet!
+            </p>
+        </div>
+        {% endif %}
+
+        <div style="text-align: center; margin-top: 2rem;">
+            {% if step == 2 %}
+            <a href="/manager/add_plane?step=1" class="back-btn">Back to Plane Details</a>
+            {% endif %}
+            <a href="/manager/dashboard" class="back-btn" style="margin-left: 0.5rem;">Back to Dashboard</a>
+        </div>
+    </div>
+
+</body>
+</html>
