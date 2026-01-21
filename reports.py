@@ -24,14 +24,20 @@ def get_avg_tickets_per_flight():
     Returns the average number of tickets sold per landed flight
     """
     query = """
-        SELECT AVG(ct.count_tickets) as avg_count_tickets
-        FROM (
-            SELECT f.flight_id, COUNT(*) as count_tickets
-            FROM Flights as f
-            JOIN FlightTickets as ft ON f.flight_id = ft.flight_id
-            WHERE f.status = 'Landed'
-            GROUP BY f.flight_id
-        ) as ct
+        SELECT AVG(flight_occupancy) AS avg_flight_occupancy
+    FROM (
+        SELECT 
+            f.flight_id,
+            COUNT(*) / COUNT(DISTINCT s.seat_row, s.seat_column) AS flight_occupancy
+        FROM Flights f
+            JOIN FlightTickets ft 
+                ON f.flight_id = ft.flight_id
+            JOIN Seats s
+                ON f.plane_id = s.plane_id
+        WHERE f.status = 'Landed'
+        GROUP BY f.flight_id
+    ) AS per_flight;
+
     """
     try:
         result = data.sql_query(query)
@@ -48,21 +54,30 @@ def get_revenue_by_class():
     Only includes landed flights with active (non-cancelled) orders
     """
     query = """
-        SELECT P.manufacturer AS Manufacturer, P.size AS Plane_Size, S.seat_class AS Class,            
-            SUM(CASE 
+        SELECT P.manufacturer AS Manufacturer, P.size AS Plane_Size, S.seat_class AS Class,
+    SUM(
+        CASE 
+            WHEN O.order_status = 'Cancelled' THEN 
+                0.05 * 
+                CASE 
                     WHEN S.seat_class = 'Business' THEN IFNULL(F.price_business, 0)
-                    ELSE F.price_economy 
-                END) AS Total_Revenue
-        FROM FlightTickets FT
-            JOIN Orders as O ON FT.order_id = O.order_id
-            JOIN Flights F ON FT.flight_id = F.flight_id
-            JOIN Seats S ON FT.plane_id = S.plane_id 
-                AND FT.seat_row = S.seat_row 
-                AND FT.seat_column = S.seat_column
-            JOIN Planes P ON F.plane_id = P.plane_id
-        WHERE F.status = 'Landed' AND O.order_status <> 'Cancelled'    
-        GROUP BY P.manufacturer, P.size, S.seat_class
-        ORDER BY P.manufacturer, P.size, Total_Revenue DESC
+                    ELSE F.price_economy
+                END
+            ELSE 
+                CASE 
+                    WHEN S.seat_class = 'Business' THEN IFNULL(F.price_business, 0)
+                    ELSE F.price_economy
+                END
+        END
+    ) AS Total_Revenue
+    FROM FlightTickets FT
+        JOIN Orders O ON FT.order_id = O.order_id
+        JOIN Flights F ON FT.flight_id = F.flight_id
+        JOIN Seats S ON FT.plane_id = S.plane_id  AND FT.seat_row = S.seat_row AND FT.seat_column = S.seat_column
+        JOIN Planes P ON F.plane_id = P.plane_id
+    WHERE F.status  <> 'Cancelled'    
+    GROUP BY P.manufacturer, P.size, S.seat_class
+    ORDER BY Total_Revenue DESC;
     """
     try:
         return data.sql_query(query)
@@ -126,11 +141,12 @@ def get_cancellation_rate_by_month():
     """
     query = """
         SELECT YEAR(order_date) AS Order_Year, MONTH(order_date) AS Order_Month,
-            ROUND((SUM(CASE WHEN order_status = 'Cancelled' THEN 1 ELSE 0 END) * 100.0) 
-                / COUNT(*), 2) AS Cancellation_Rate_Percent
-        FROM Orders
-        GROUP BY YEAR(order_date), MONTH(order_date)
-        ORDER BY Order_Year DESC, Order_Month DESC
+    ROUND((SUM(CASE WHEN order_status = 'Cancelled' THEN 1 ELSE 0 END) * 100.0) 
+        / COUNT(*), 2) AS Cancellation_Rate_Percent
+    FROM Orders
+    WHERE order_status <> 'Cancelled'
+    GROUP BY YEAR(order_date), MONTH(order_date)
+    ORDER BY Order_Year DESC, Order_Month DESC;
     """
     try:
         return data.sql_query(query)
