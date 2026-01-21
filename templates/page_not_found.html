@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page Not Found - FlyTau</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="centered-page">
+    <div style="position: fixed; top: 20px; left: 20px; z-index: 1000; display: flex; gap: 0.5rem; align-items: center;">
+        <a href="/" style="font-size: 1.2rem; text-decoration: none; display: flex; align-items: center; justify-content: center; padding: 0.4rem 0.8rem; border-radius: 0.4rem; background-color: white; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+            🏠
+        </a>
+    </div>
+    <div class="card card-extra-round">
+        <div class="header-section">
+            <div class="icon-circle" style="background-color: #fee2e2; color: #991b1b;">
+                🔍
+            </div>
+            <h2 style="font-weight: 900; font-size: 1.875rem; color: #991b1b;">Page Not Found</h2>
+        </div>
+
+        <div style="text-align: center; padding: 1rem; color: #4b5563;">
+            <p style="font-size: 1.125rem; margin-bottom: 1rem;">
+                The page you are looking for does not exist.
+            </p>
+            <p style="font-size: 0.875rem; color: #6b7280;">
+                Please check the URL or return to the homepage.
+            </p>
+        </div>
+
+        <div style="margin-top: 2rem; text-align: center;">
+            <a href="/" class="link-primary" style="display: inline-block; padding: 0.75rem 2rem; background-color: #3b82f6; color: white; text-decoration: none; border-radius: 0.5rem; font-weight: bold; font-size: 1rem;">
+                Back to Homepage
+            </a>
+        </div>
+    </div>
+</body>
+</html>
+

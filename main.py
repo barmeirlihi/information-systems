@@ -37,11 +37,17 @@ def require_user_type(allowed_types):
 
 @app.route("/")
 def homepage():
-    return render_template('homepage.html')
+    error = request.args.get('error')
+    return render_template('homepage.html', error=error)
 
 
 @app.route("/login", methods=["POST", "GET"])
 def login():
+    # If user is already logged in as user or guest, redirect to book_flights
+    user_type = session.get('user_type')
+    if user_type in ['user', 'guest']:
+        return redirect("/book_flights")
+    
     if request.method == "POST":
         email = request.form.get("email")
         password = request.form.get("password")
@@ -52,7 +58,9 @@ def login():
             return redirect("/book_flights")
         else:
             return render_template("login.html", message='Incorrect Login Details.')
-    return render_template("login.html")
+    error = request.args.get('error')
+    message = error if error else None
+    return render_template("login.html", message=message)
 
 @app.route("/sign_up", methods=["POST", "GET"])
 def sign_up():
@@ -84,6 +92,11 @@ def sign_up():
 
 @app.route("/guest", methods=["POST", "GET"])
 def guest_page():
+    # If user is already logged in as guest or user, redirect to book_flights
+    user_type = session.get('user_type')
+    if user_type in ['guest', 'user']:
+        return redirect("/book_flights")
+    
     if request.method == "POST":
         email = request.form.get("email")
         first_name = request.form.get("first_name")
@@ -120,6 +133,11 @@ def guest_page():
 
 @app.route("/manager", methods=["POST", "GET"])
 def manager():
+    # If manager is already logged in, redirect to dashboard
+    user_type = session.get('user_type')
+    if user_type == 'manager':
+        return redirect("/manager/dashboard")
+    
     if request.method == "POST":
         manager_id = request.form.get("manager_id")
         password = request.form.get("password")
@@ -130,12 +148,21 @@ def manager():
             return redirect("/manager/dashboard")
         else:
             return render_template("manager.html", message='Incorrect Login Details.')
-    return render_template("manager.html")
+    error = request.args.get('error')
+    message = error if error else None
+    return render_template("manager.html", message=message)
 
 @app.route("/book_flights", methods=["GET", "POST"])
 def book_flights():
+    user_type = session.get('user_type')
+    
+    # Check if user is a manager
+    if user_type == 'manager':
+        return redirect("/?error=Managers cannot access the booking system. Please use the manager dashboard.")
+    
+    # Check if user is logged in as user or guest
     if not require_user_type(['user', 'guest']):
-        return redirect("/")
+        return redirect("/?error=Please log in or continue as guest to search and book flights")
     
     airports = get_all_airports()
     flight_objects = []
@@ -188,8 +215,15 @@ def book_flights():
 
 @app.route("/select_seats/<int:flight_id>", methods=["GET", "POST"])
 def select_seats(flight_id):
+    user_type = session.get('user_type')
+    
+    # Check if user is a manager
+    if user_type == 'manager':
+        return redirect("/?error=Managers cannot access the booking system. Please use the manager dashboard.")
+    
+    # Check if user is logged in as user or guest
     if not require_user_type(['user', 'guest']):
-        return redirect("/")
+        return redirect("/?error=Please log in or continue as guest to select seats")
     
     # Get flight object using the Flight class
     flight = Flight.get_flight_by_id(flight_id)
@@ -252,8 +286,15 @@ def select_seats(flight_id):
 
 @app.route("/complete_booking/<int:flight_id>", methods=["GET", "POST"])
 def complete_booking(flight_id):
+    user_type = session.get('user_type')
+    
+    # Check if user is a manager
+    if user_type == 'manager':
+        return redirect("/?error=Managers cannot access the booking system. Please use the manager dashboard.")
+    
+    # Check if user is logged in as user or guest
     if not require_user_type(['user', 'guest']):
-        return redirect("/")
+        return redirect("/?error=Please log in or continue as guest to complete booking")
     
     # Get order from session
     order = Order.from_session(session, flight_id)
@@ -323,8 +364,15 @@ def complete_booking(flight_id):
 
 @app.route("/confirm_booking/<int:flight_id>", methods=["GET", "POST"])
 def confirm_booking(flight_id):
+    user_type = session.get('user_type')
+    
+    # Check if user is a manager
+    if user_type == 'manager':
+        return redirect("/?error=Managers cannot access the booking system. Please use the manager dashboard.")
+    
+    # Check if user is logged in as user or guest
     if not require_user_type(['user', 'guest']):
-        return redirect("/")
+        return redirect("/?error=Please log in or continue as guest to confirm booking")
     
     # Get order from session
     order = Order.from_session(session, flight_id)
@@ -403,7 +451,7 @@ def flights_management():
 def select_route():
     """Step 1: Process route selection and move to step 2"""
     if not require_user_type(['manager']):
-        return redirect("/manager")
+        return redirect("/manager?error=Access denied. Please log in as manager")
     
     origin_airport = request.form.get("origin_airport")
     destination_airport = request.form.get("destination_airport")
@@ -479,7 +527,7 @@ def select_route():
 def update_plane_selection():
     """Update plane selection and show crew selection"""
     if not require_user_type(['manager']):
-        return redirect("/manager")
+        return redirect("/manager?error=Access denied. Please log in as manager")
     
     origin_airport = request.form.get("origin_airport")
     destination_airport = request.form.get("destination_airport")
@@ -582,7 +630,7 @@ def update_plane_selection():
 def add_flight_route():
     """Add new flight to database"""
     if not require_user_type(['manager']):
-        return redirect("/manager")
+        return redirect("/manager?error=Access denied. Please log in as manager")
     
     origin_airport = request.form.get("origin_airport")
     destination_airport = request.form.get("destination_airport")
@@ -812,6 +860,16 @@ def add_flight_route():
 @app.route("/manage_orders", methods=["GET", "POST"])
 def manage_orders():
     """Order management page for guests - requires order number"""
+    user_type = session.get('user_type')
+    
+    # Check if user is a manager
+    if user_type == 'manager':
+        return redirect("/?error=Managers cannot access the booking system. Please use the manager dashboard.")
+    
+    # Allow guests and users to access this page
+    if not require_user_type(['user', 'guest']):
+        return redirect("/?error=Please log in or continue as guest to manage orders")
+    
     if request.method == "POST":
         order_id = request.form.get("order_id")
         if not order_id:
@@ -825,6 +883,11 @@ def manage_orders():
         order = Order.get_by_id(order_id)
         if not order:
             return render_template("manage_orders.html", error="Order not found")
+        
+        # Verify that the order belongs to the current user/guest
+        user_email = session.get('user_email')
+        if order.email != user_email:
+            return render_template("manage_orders.html", error="You don't have access to this order")
         
         # Get display status
         status, cancellation_fee, final_price = order.get_display_status()
@@ -842,7 +905,7 @@ def manage_orders():
 def my_orders():
     """Order management page for registered users - shows all orders"""
     if not require_user_type(['user']):
-        return redirect("/login")
+        return redirect("/login?error=Please log in as a registered user to view your orders")
     
     user_email = session.get('user_email')
     orders = Order.get_by_email(user_email)
@@ -865,12 +928,24 @@ def order_details(order_id):
     """View order details"""
     user_type = session.get('user_type')
     
-    if user_type not in ['user', 'guest']:
-        return redirect("/")
+    # Check if user is a manager
+    if user_type == 'manager':
+        return redirect("/?error=Managers cannot access the booking system. Please use the manager dashboard.")
+    
+    # Check if user is logged in as user or guest
+    if not require_user_type(['user', 'guest']):
+        return redirect("/?error=Please log in or continue as guest to view order details")
+    
+    user_type = session.get('user_type')
+    user_email = session.get('user_email')
     
     order = Order.get_by_id(order_id)
     if not order:
         return render_template("error.html", error="Order not found")
+    
+    # Verify that the order belongs to the current user/guest
+    if order.email != user_email:
+        return render_template("error.html", error="You don't have access to this order")
     
     # Get display status
     status, _, final_price = order.get_display_status()
@@ -883,7 +958,7 @@ def order_details(order_id):
     else:
         cancellation_fee = 0.0
     
-    is_guest = (user_type == 'guest' or user_type is None)
+    is_guest = (user_type == 'guest')
     
     return render_template("order_details.html",
                          order=order,
@@ -897,12 +972,24 @@ def confirm_cancel(order_id):
     """Confirmation page before cancelling an order"""
     user_type = session.get('user_type')
     
-    if user_type not in ['user', 'guest']:
-        return redirect("/")
+    # Check if user is a manager
+    if user_type == 'manager':
+        return redirect("/?error=Managers cannot access the booking system. Please use the manager dashboard.")
+    
+    # Check if user is logged in as user or guest
+    if not require_user_type(['user', 'guest']):
+        return redirect("/?error=Please log in or continue as guest to cancel order")
+    
+    user_type = session.get('user_type')
+    user_email = session.get('user_email')
     
     order = Order.get_by_id(order_id)
     if not order:
         return render_template("error.html", error="Order not found")
+    
+    # Verify that the order belongs to the current user/guest
+    if order.email != user_email:
+        return render_template("error.html", error="You don't have access to this order")
     
     # Check if order can be cancelled
     status, _, _ = order.get_display_status()
@@ -924,12 +1011,24 @@ def cancel_order(order_id):
     """Cancel an order"""
     user_type = session.get('user_type')
     
-    if user_type not in ['user', 'guest']:
-        return redirect("/")
+    # Check if user is a manager
+    if user_type == 'manager':
+        return redirect("/?error=Managers cannot access the booking system. Please use the manager dashboard.")
+    
+    # Check if user is logged in as user or guest
+    if not require_user_type(['user', 'guest']):
+        return redirect("/?error=Please log in or continue as guest to cancel order")
+    
+    user_type = session.get('user_type')
+    user_email = session.get('user_email')
     
     order = Order.get_by_id(order_id)
     if not order:
         return render_template("error.html", error="Order not found")
+    
+    # Verify that the order belongs to the current user/guest
+    if order.email != user_email:
+        return render_template("error.html", error="You don't have access to this order")
     
     # Check if order can be cancelled
     status, cancellation_fee, _ = order.get_display_status()
@@ -948,11 +1047,9 @@ def cancel_order(order_id):
     # Redirect based on user type
     if user_type == 'guest':
         return render_template("order_details.html",
-                             order=order,
-                             display_status=status,
+                             order=order, display_status=status,
                              cancellation_fee=cancellation_fee,
-                             final_price=final_price,
-                             is_guest=True,
+                             final_price=final_price, is_guest=True,
                              cancelled=True)
     else:
         return redirect("/my_orders")
@@ -961,21 +1058,13 @@ def cancel_order(order_id):
 def manager_dashboard():
     """Manager dashboard - shows all flights"""
     if not require_user_type(['manager']):
-        return redirect("/manager")
+        return redirect("/manager?error=Access denied. Please log in as manager")
     
     # Get all flights with details
     query = """
-        SELECT 
-            f.flight_id,
-            f.departure_time,
-            f.departure_date,
-            f.origin_airport_name,
-            f.destination_airport_name,
-            f.plane_id,
-            f.status,
-            ao.city as origin_city,
-            ao.country as origin_country,
-            ad.city as destination_city,
+        SELECT f.flight_id, f.departure_time, f.departure_date, f.origin_airport_name,
+            f.destination_airport_name, f.plane_id, f.status, ao.city as origin_city,
+            ao.country as origin_country, ad.city as destination_city,
             ad.country as destination_country,
             CASE 
                 WHEN TIMESTAMPDIFF(HOUR, NOW(), CONCAT(f.departure_date, ' ', f.departure_time)) > 72 
@@ -996,11 +1085,260 @@ def manager_dashboard():
     
     return render_template("manager_dashboard.html", flights=flights)
 
+@app.route("/manager/add_plane", methods=["GET", "POST"])
+def add_plane():
+    """Add a new plane to the fleet - two step process"""
+    if not require_user_type(['manager']):
+        return redirect("/manager?error=Access denied. Please log in as manager")
+    
+    step = request.args.get('step', '1')
+    
+    if request.method == "POST":
+        # Step 1: Plane basic details
+        if step == '1':
+            plane_id = request.form.get("plane_id")
+            manufacturer = request.form.get("manufacturer")
+            size = request.form.get("size")
+            purchase_date = request.form.get("purchase_date")
+            
+            # Validate all fields are provided
+            if not all([plane_id, manufacturer, size, purchase_date]):
+                return render_template("add_plane.html", 
+                                     step=1,
+                                     error="Please fill all required fields",
+                                     plane_id=plane_id or "",
+                                     manufacturer=manufacturer or "",
+                                     size=size or "",
+                                     purchase_date=purchase_date or "")
+            
+            # Validate manufacturer
+            valid_manufacturers = ['Boeing', 'Airbus', 'Dassault']
+            if manufacturer not in valid_manufacturers:
+                return render_template("add_plane.html",
+                                     step=1,
+                                     error="Invalid manufacturer. Please select Boeing, Airbus, or Dassault",
+                                     plane_id=plane_id,
+                                     manufacturer=manufacturer,
+                                     size=size,
+                                     purchase_date=purchase_date)
+            
+            # Validate size
+            valid_sizes = ['Large', 'Small']
+            if size not in valid_sizes:
+                return render_template("add_plane.html",
+                                     step=1,
+                                     error="Invalid size. Please select Large or Small",
+                                     plane_id=plane_id,
+                                     manufacturer=manufacturer,
+                                     size=size,
+                                     purchase_date=purchase_date)
+            
+            # Validate plane_id is numeric
+            try:
+                plane_id_int = int(plane_id)
+            except ValueError:
+                return render_template("add_plane.html",
+                                     step=1,
+                                     error="Plane ID must be a number",
+                                     plane_id=plane_id,
+                                     manufacturer=manufacturer,
+                                     size=size,
+                                     purchase_date=purchase_date)
+            
+            # Check if plane_id already exists
+            existing_plane = data.sql_query("SELECT plane_id FROM Planes WHERE plane_id = %s", plane_id_int)
+            if existing_plane:
+                return render_template("add_plane.html",
+                                     step=1,
+                                     error=f"Plane with ID {plane_id_int} already exists",
+                                     plane_id=plane_id,
+                                     manufacturer=manufacturer,
+                                     size=size,
+                                     purchase_date=purchase_date)
+            
+            # Insert plane into database
+            try:
+                data.sql_insert(
+                    "INSERT INTO Planes (plane_id, manufacturer, size, purchase_date) VALUES (%s, %s, %s, %s)",
+                    plane_id_int, manufacturer, size, purchase_date
+                )
+                # Move to step 2 - seat configuration
+                return render_template("add_plane.html",
+                                     step=2,
+                                     plane_id=plane_id_int,
+                                     size=size,
+                                     manufacturer=manufacturer,
+                                     purchase_date=purchase_date)
+            except Exception as e:
+                return render_template("add_plane.html",
+                                     step=1,
+                                     error=f"Error adding plane: {str(e)}",
+                                     plane_id=plane_id,
+                                     manufacturer=manufacturer,
+                                     size=size,
+                                     purchase_date=purchase_date)
+        
+        # Step 2: Seat configuration
+        elif step == '2':
+            plane_id = request.form.get("plane_id")
+            size = request.form.get("size")
+            
+            try:
+                plane_id_int = int(plane_id)
+            except ValueError:
+                return redirect("/manager/add_plane?step=1")
+            
+            # Validate plane exists
+            existing_plane = data.sql_query("SELECT plane_id FROM Planes WHERE plane_id = %s", plane_id_int)
+            if not existing_plane:
+                return redirect("/manager/add_plane?step=1")
+            
+            # Get seat configuration based on plane size
+            if size == 'Small':
+                # Small plane: only Economy class
+                economy_rows = request.form.get("economy_rows")
+                economy_seats_per_row = request.form.get("economy_seats_per_row")
+                
+                if not all([economy_rows, economy_seats_per_row]):
+                    return render_template("add_plane.html",
+                                         step=2,
+                                         plane_id=plane_id_int,
+                                         size=size,
+                                         error="Please fill all required fields",
+                                         economy_rows=economy_rows or "",
+                                         economy_seats_per_row=economy_seats_per_row or "")
+                
+                try:
+                    economy_rows_int = int(economy_rows)
+                    economy_seats_int = int(economy_seats_per_row)
+                    
+                    if economy_rows_int <= 0 or economy_seats_int <= 0:
+                        return render_template("add_plane.html",
+                                             step=2,
+                                             plane_id=plane_id_int,
+                                             size=size,
+                                             error="Rows and seats per row must be positive numbers",
+                                             economy_rows=economy_rows,
+                                             economy_seats_per_row=economy_seats_per_row)
+                    
+                    # Insert seats for Economy class
+                    for row in range(1, economy_rows_int + 1):
+                        for col in range(1, economy_seats_int + 1):
+                            data.sql_insert(
+                                "INSERT INTO Seats (plane_id, seat_row, seat_column, seat_class) VALUES (%s, %s, %s, %s)",
+                                plane_id_int, row, col, 'Economy'
+                            )
+                    
+                    return render_template("add_plane.html",
+                                         step=3,
+                                         success=True,
+                                         plane_id=plane_id_int)
+                    
+                except ValueError:
+                    return render_template("add_plane.html",
+                                         step=2,
+                                         plane_id=plane_id_int,
+                                         size=size,
+                                         error="Rows and seats per row must be numbers",
+                                         economy_rows=economy_rows,
+                                         economy_seats_per_row=economy_seats_per_row)
+            
+            else:  # Large plane: Business and Economy classes
+                business_rows = request.form.get("business_rows")
+                business_seats_per_row = request.form.get("business_seats_per_row")
+                economy_rows = request.form.get("economy_rows")
+                economy_seats_per_row = request.form.get("economy_seats_per_row")
+                
+                if not all([business_rows, business_seats_per_row, economy_rows, economy_seats_per_row]):
+                    return render_template("add_plane.html",
+                                         step=2,
+                                         plane_id=plane_id_int,
+                                         size=size,
+                                         error="Please fill all required fields",
+                                         business_rows=business_rows or "",
+                                         business_seats_per_row=business_seats_per_row or "",
+                                         economy_rows=economy_rows or "",
+                                         economy_seats_per_row=economy_seats_per_row or "")
+                
+                try:
+                    business_rows_int = int(business_rows)
+                    business_seats_int = int(business_seats_per_row)
+                    economy_rows_int = int(economy_rows)
+                    economy_seats_int = int(economy_seats_per_row)
+                    
+                    if (business_rows_int <= 0 or business_seats_int <= 0 or 
+                        economy_rows_int <= 0 or economy_seats_int <= 0):
+                        return render_template("add_plane.html",
+                                             step=2,
+                                             plane_id=plane_id_int,
+                                             size=size,
+                                             error="Rows and seats per row must be positive numbers",
+                                             business_rows=business_rows,
+                                             business_seats_per_row=business_seats_per_row,
+                                             economy_rows=economy_rows,
+                                             economy_seats_per_row=economy_seats_per_row)
+                    
+                    # Insert seats for Business class
+                    for row in range(1, business_rows_int + 1):
+                        for col in range(1, business_seats_int + 1):
+                            data.sql_insert(
+                                "INSERT INTO Seats (plane_id, seat_row, seat_column, seat_class) VALUES (%s, %s, %s, %s)",
+                                plane_id_int, row, col, 'Business'
+                            )
+                    
+                    # Insert seats for Economy class (starting after business rows)
+                    # Using row numbers starting after business rows (e.g., if business has 4 rows, economy starts at row 10)
+                    economy_start_row = max(business_rows_int + 1, 10)  # Start economy at row 10 or after business rows
+                    for row in range(economy_start_row, economy_start_row + economy_rows_int):
+                        for col in range(1, economy_seats_int + 1):
+                            data.sql_insert(
+                                "INSERT INTO Seats (plane_id, seat_row, seat_column, seat_class) VALUES (%s, %s, %s, %s)",
+                                plane_id_int, row, col, 'Economy'
+                            )
+                    
+                    return render_template("add_plane.html",
+                                         step=3,
+                                         success=True,
+                                         plane_id=plane_id_int)
+                    
+                except ValueError:
+                    return render_template("add_plane.html",
+                                         step=2,
+                                         plane_id=plane_id_int,
+                                         size=size,
+                                         error="Rows and seats per row must be numbers",
+                                         business_rows=business_rows,
+                                         business_seats_per_row=business_seats_per_row,
+                                         economy_rows=economy_rows,
+                                         economy_seats_per_row=economy_seats_per_row)
+                except Exception as e:
+                    return render_template("add_plane.html",
+                                         step=2,
+                                         plane_id=plane_id_int,
+                                         size=size,
+                                         error=f"Error adding seats: {str(e)}",
+                                         business_rows=business_rows,
+                                         business_seats_per_row=business_seats_per_row,
+                                         economy_rows=economy_rows,
+                                         economy_seats_per_row=economy_seats_per_row)
+    
+    # GET request - show form
+    if step == '2':
+        # Should not reach here via GET for step 2, redirect to step 1
+        return redirect("/manager/add_plane?step=1")
+    
+    return render_template("add_plane.html",
+                         step=1,
+                         plane_id="",
+                         manufacturer="",
+                         size="",
+                         purchase_date="")
+
 @app.route("/manager/reports")
 def manager_reports():
     """Manager reports page - shows analytics and charts"""
     if not require_user_type(['manager']):
-        return redirect("/manager")
+        return redirect("/manager?error=Access denied. Please log in as manager")
     
     # Get all reports data
     reports_data = reports.get_all_reports()
@@ -1023,7 +1361,7 @@ def manager_reports():
 def confirm_cancel_flight(flight_id):
     """Confirmation page before cancelling a flight"""
     if not require_user_type(['manager']):
-        return redirect("/manager")
+        return redirect("/manager?error=Access denied. Please log in as manager")
     
     flight = Flight.get_flight_by_id(flight_id, include_all_statuses=True)
     if not flight:
@@ -1046,7 +1384,7 @@ def confirm_cancel_flight(flight_id):
 def cancel_flight(flight_id):
     """Cancel a flight"""
     if not require_user_type(['manager']):
-        return redirect("/manager")
+        return redirect("/manager?error=Access denied. Please log in as manager")
     
     flight = Flight.get_flight_by_id(flight_id, include_all_statuses=True)
     if not flight:
@@ -1066,6 +1404,12 @@ def cancel_flight(flight_id):
 def logout():
     session.clear()
     return redirect("/")
+
+
+@app.errorhandler(404)
+def page_not_found(e):
+    """Handle 404 errors - Page Not Found"""
+    return render_template("page_not_found.html"), 404
 
 
 if __name__ == "__main__":
