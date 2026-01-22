@@ -98,10 +98,14 @@ def get_password(email):
 
 
 def is_user(email):
-    result = data.sql_query("""select * from users where email = %s""", email)
-    if not result:
+    try:
+        result = data.sql_query("""select * from users where email = %s""", email)
+        if not result:
+            return False
+        return True
+    except Exception as e:
+        print(f"Error checking if user exists: {e}")
         return False
-    return read_user(email)
 
 def add_user(user):
     if is_user(user.email):

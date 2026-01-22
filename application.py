@@ -155,19 +155,24 @@ def guest_page():
 
             # שלב א': אם יש רק email -> נבדוק מה הסטטוס שלו
             if email and not (first_name and last_name and phone):
+                print(f"Checking guest status for email: {email}")
                 # 1. בדיקה האם הוא כבר קיים כאורח
-                if guest.is_guest(email):
+                is_existing_guest = guest.is_guest(email)
+                print(f"Is existing guest: {is_existing_guest}")
+                if is_existing_guest:
                     session['user_type'] = 'guest'
                     session['user_email'] = email
                     return redirect("/book_flights")
                 
                 # 2. בדיקה האם הוא קיים כמשתמש רשום
-                elif users.is_user(email):
+                is_existing_user = users.is_user(email)
+                print(f"Is existing user: {is_existing_user}")
+                if is_existing_user:
                     return render_template("login.html", message="You are a registered user. Please log in.")
                 
                 # 3. אם הוא לא אורח ולא רשום -> נטען את הדף עם השדות הפתוחים
-                else:
-                    return render_template("guest.html", show_details=True, email_value=email)
+                print(f"New guest, showing details form")
+                return render_template("guest.html", show_details=True, email_value=email)
 
             # שלב ב': אם שלחו לנו את כל הפרטים -> ניצור את האורח
             elif email and first_name and last_name and phone:
@@ -179,8 +184,11 @@ def guest_page():
                 session['user_email'] = email
                 return redirect("/book_flights")
         except Exception as e:
+            import traceback
             print(f"Guest page error: {e}")
-            return render_template("guest.html", error="An error occurred. Please try again.")
+            traceback.print_exc()
+            email_val = email if 'email' in locals() and email else ''
+            return render_template("guest.html", message=f"An error occurred: {str(e)}", email_value=email_val)
 
     return render_template("guest.html")
 

@@ -100,11 +100,14 @@ def read_guest(email):
     return new_guest
 
 def is_guest(email):
-    result = data.sql_query("""select * from guests where UserEmail = %s""", email)
-    if not result:
+    try:
+        result = data.sql_query("""select * from guests where UserEmail = %s""", email)
+        if not result:
+            return False
+        return True
+    except Exception as e:
+        print(f"Error checking if guest exists: {e}")
         return False
-    guest_obj = read_guest(email)
-    return guest_obj is not None
 
 def add_guest(guest):
     if is_guest(guest.email):
