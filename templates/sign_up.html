@@ -37,7 +37,9 @@
             <p>Sign up for exclusive rewards and faster booking.</p>
         </div>
 
-        {% if message %}
+        {% if error %}
+            <div class="error-msg">{{ error }}</div>
+        {% elif message %}
             <div class="error-msg">{{ message }}</div>
         {% endif %}
 
@@ -45,17 +47,17 @@
 
             <div class="form-group">
                 <label>First Name</label>
-                <input type="text" name="first_name" placeholder="First Name" required>
+                <input type="text" name="first_name" placeholder="First Name" value="{{ first_name or '' }}" required>
             </div>
 
             <div class="form-group">
                 <label>Last Name</label>
-                <input type="text" name="last_name" placeholder="Last Name" required>
+                <input type="text" name="last_name" placeholder="Last Name" value="{{ last_name or '' }}" required>
             </div>
 
             <div class="form-group col-span-2">
                 <label>Email Address</label>
-                <input type="email" name="email" placeholder="email@example.com" required>
+                <input type="email" name="email" placeholder="email@example.com" value="{{ email or '' }}" required>
             </div>
 
             <div class="form-group col-span-2">
@@ -65,18 +67,18 @@
 
             <div class="form-group">
                 <label>Birth Date</label>
-                <input type="date" name="birth_date" required>
+                <input type="date" name="birth_date" value="{{ birth_date or '' }}" required>
             </div>
 
             <div class="form-group">
                 <label>Passport Number</label>
-                <input type="text" name="passport_number" placeholder="Passport ID" required>
+                <input type="text" name="passport_number" placeholder="Passport ID" value="{{ passport_number or '' }}" required>
             </div>
 
             <div class="form-group col-span-2">
                 <label>Phone Numbers</label>
                 <div style="font-size: 0.8rem; color: #64748b; margin-bottom: 5px;">Separate multiple numbers with a comma</div>
-                <input type="text" name="phone_numbers" placeholder="050-1234567, 052-7654321">
+                <input type="text" name="phone_numbers" placeholder="050-1234567, 052-7654321" value="{{ phone_numbers or '' }}">
             </div>
 
             <div class="col-span-2" style="margin-top: 1rem;">

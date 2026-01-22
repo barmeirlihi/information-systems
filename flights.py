@@ -128,11 +128,41 @@ class Flight(ABC):
         booked_seats = len(self.get_booked_seats())
         return total_seats - booked_seats
     
+    def is_full(self):
+        """Checks if flight is full (all seats booked)"""
+        return self.get_available_seats_count() == 0
+    
+    def update_status_if_full(self):
+        """
+        Updates flight status to 'Full' if all seats are booked and status is 'Active'
+        Returns True if status was updated, False otherwise
+        """
+        if self.status == 'Active' and self.is_full():
+            try:
+                query = """
+                    UPDATE Flights
+                    SET status = 'Full'
+                    WHERE flight_id = %s AND status = 'Active'
+                """
+                data.sql_insert(query, self.flight_id)
+                self.status = 'Full'
+                return True
+            except Exception as e:
+                print(f"Error updating flight status to Full: {str(e)}")
+                return False
+        return False
+    
     def validate_seat_selection(self, selected_seats):
         """
         Validates selected seats and calculates total price
         Returns: (total_price, seat_details, error_message)
         """
+        # Check if flight is full or cancelled
+        if self.status == 'Full':
+            return None, None, "This flight is full. No more seats available."
+        if self.status == 'Cancelled':
+            return None, None, "This flight has been cancelled."
+        
         booked_seats = self.get_booked_seats()
         total_price = 0
         seat_details = []
@@ -181,6 +211,9 @@ class Flight(ABC):
                           seat_row, seat_column)
         # Clear cached booked seats to force refresh
         self._booked_seats = None
+        
+        # Check if flight is now full and update status
+        self.update_status_if_full()
     
     def cancel_order_seats(self, order_id):
         """
@@ -342,7 +375,7 @@ class Flight(ABC):
     
     @staticmethod
     def get_active_flights(origin=None, destination=None, flight_date=None):
-        """Gets list of active flights, returns as list of Flight objects"""
+        """Gets list of active flights (excluding Full and Cancelled), returns as list of Flight objects"""
         query = """
             SELECT 
                 f.flight_id,
@@ -367,7 +400,9 @@ class Flight(ABC):
             JOIN Airports ao ON f.origin_airport_name = ao.airport_name
             JOIN Airports ad ON f.destination_airport_name = ad.airport_name
             JOIN Planes p ON f.plane_id = p.plane_id
-            WHERE f.status = 'Active'
+            WHERE f.status = 'Active' 
+            AND (SELECT COUNT(*) FROM Seats s WHERE s.plane_id = f.plane_id) > 
+                (SELECT COUNT(*) FROM FlightTickets ft WHERE ft.flight_id = f.flight_id)
         """
         
         params = []
