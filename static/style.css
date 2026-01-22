@@ -439,3 +439,17 @@ body.manager-mode {
     transition: color 0.2s;
 }
 .link-guest:hover { color: #475569; }
+
+/* --- הודעות שגיאה (Error Messages) --- */
+.error-msg {
+    background-color: #fee2e2;
+    color: #dc2626;
+    border: 2px solid #dc2626;
+    border-radius: 0.75rem;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    font-weight: 600;
+    font-size: 1rem;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(220, 38, 38, 0.2);
+}

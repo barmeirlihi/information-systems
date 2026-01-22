@@ -84,6 +84,14 @@
             background-color: #fee2e2;
             color: #991b1b;
         }
+        .status-full {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+        .status-landed {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
         .cancel-btn {
             padding: 0.5rem 1rem;
             background-color: #ef4444;
@@ -154,6 +162,75 @@
             font-size: 0.875rem;
             color: #94a3b8;
             margin-top: 0.5rem;
+        }
+        .filter-form {
+            background-color: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .filter-form h4 {
+            margin: 0 0 1rem 0;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #334155;
+        }
+        .filter-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            align-items: flex-end;
+        }
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-width: 150px;
+        }
+        .filter-group label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #475569;
+            margin-bottom: 0.5rem;
+        }
+        .filter-group select,
+        .filter-group input {
+            padding: 0.625rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            background-color: white;
+        }
+        .filter-group select:focus,
+        .filter-group input:focus {
+            outline: none;
+            border-color: #669bbc;
+        }
+        .filter-actions {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+        .filter-btn {
+            padding: 0.625rem 1.25rem;
+            background-color: #669bbc;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .filter-btn:hover {
+            background-color: #356789;
+        }
+        .filter-btn.secondary {
+            background-color: #64748b;
+        }
+        .filter-btn.secondary:hover {
+            background-color: #475569;
         }
     </style>
 </head>
@@ -233,6 +310,58 @@
             <h3 style="margin: 0;">All Flights</h3>
         </div>
 
+        <div class="filter-form">
+            <h4>Filter Flights</h4>
+            <form method="POST" action="/manager/dashboard">
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label for="filter_date">Date</label>
+                        <input type="date" id="filter_date" name="filter_date" value="{{ filter_values.date if filter_values else '' }}">
+                    </div>
+                    <div class="filter-group">
+                        <label for="filter_origin">Origin</label>
+                        <select id="filter_origin" name="filter_origin">
+                            <option value="">All Origins</option>
+                            {% if airports %}
+                            {% for airport in airports %}
+                            <option value="{{ airport[0] }}" {% if filter_values and filter_values.origin == airport[0] %}selected{% endif %}>
+                                {{ airport[0] }} - {{ airport[1] }}, {{ airport[2] }}
+                            </option>
+                            {% endfor %}
+                            {% endif %}
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="filter_destination">Destination</label>
+                        <select id="filter_destination" name="filter_destination">
+                            <option value="">All Destinations</option>
+                            {% if airports %}
+                            {% for airport in airports %}
+                            <option value="{{ airport[0] }}" {% if filter_values and filter_values.destination == airport[0] %}selected{% endif %}>
+                                {{ airport[0] }} - {{ airport[1] }}, {{ airport[2] }}
+                            </option>
+                            {% endfor %}
+                            {% endif %}
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="filter_status">Status</label>
+                        <select id="filter_status" name="filter_status">
+                            <option value="">All Statuses</option>
+                            <option value="Active" {% if filter_values and filter_values.status == 'Active' %}selected{% endif %}>Active</option>
+                            <option value="Cancelled" {% if filter_values and filter_values.status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+                            <option value="Landed" {% if filter_values and filter_values.status == 'Landed' %}selected{% endif %}>Landed</option>
+                            <option value="Full" {% if filter_values and filter_values.status == 'Full' %}selected{% endif %}>Full</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="filter-actions">
+                    <button type="submit" class="filter-btn">Apply Filters</button>
+                    <a href="/manager/dashboard" class="filter-btn secondary" style="text-decoration: none; display: inline-block; text-align: center;">Clear Filters</a>
+                </div>
+            </form>
+        </div>
+
         {% if flights %}
         <table class="flights-table">
             <thead>
@@ -257,7 +386,7 @@
                     </td>
                     <td>{{ flight[5] }}</td>
                     <td>
-                        <span class="status-badge {% if flight[6] == 'Active' %}status-active{% else %}status-cancelled{% endif %}">
+                        <span class="status-badge {% if flight[6] == 'Active' %}status-active{% elif flight[6] == 'Cancelled' %}status-cancelled{% elif flight[6] == 'Full' %}status-full{% elif flight[6] == 'Landed' %}status-landed{% else %}status-active{% endif %}">
                             {{ flight[6] }}
                         </span>
                     </td>

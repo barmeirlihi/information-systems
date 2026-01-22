@@ -75,6 +75,28 @@ def sign_up():
         # קליטת מחרוזת הטלפונים (למשל: "050-123, 052-456")
         phones_string = request.form.get("phone_numbers")
 
+        # Check if email is already registered as guest
+        if guest.is_guest(email):
+            return render_template("sign_up.html", 
+                                 error="You are already registered as a guest, please use another email",
+                                 first_name=first_name,
+                                 last_name=last_name,
+                                 email=email,
+                                 birth_date=birth_date,
+                                 passport_number=passport_number,
+                                 phone_numbers=phones_string)
+        
+        # Check if email is already registered as user
+        if users.is_user(email):
+            return render_template("sign_up.html", 
+                                 error="This email is already registered in the system, please log in instead",
+                                 first_name=first_name,
+                                 last_name=last_name,
+                                 email=email,
+                                 birth_date=birth_date,
+                                 passport_number=passport_number,
+                                 phone_numbers=phones_string)
+
         new_user = User(email, password, first_name, last_name, phones_string, None, birth_date, passport_number)
         try:
             add_user(new_user)
@@ -84,7 +106,14 @@ def sign_up():
 
         except Exception as e:
             print(f"Error: {e}")
-            return render_template("sign_up.html", message="Error registering user")
+            return render_template("sign_up.html", 
+                                 error="Error registering user",
+                                 first_name=first_name,
+                                 last_name=last_name,
+                                 email=email,
+                                 birth_date=birth_date,
+                                 passport_number=passport_number,
+                                 phone_numbers=phones_string)
 
     return render_template("sign_up.html")
 
@@ -228,6 +257,12 @@ def select_seats(flight_id):
     flight = Flight.get_flight_by_id(flight_id)
     if not flight:
         return redirect("/book_flights")
+    
+    # Check if flight is full or cancelled
+    if flight.status == 'Full':
+        return redirect("/book_flights?error=Flight is full. No seats available.")
+    if flight.status == 'Cancelled':
+        return redirect("/book_flights?error=Flight has been cancelled.")
     
     # Organize seats by row using the flight object
     seats_by_row = flight.organize_seats_by_row()
@@ -1053,13 +1088,23 @@ def cancel_order(order_id):
     else:
         return redirect("/my_orders")
 
-@app.route("/manager/dashboard")
+@app.route("/manager/dashboard", methods=["GET", "POST"])
 def manager_dashboard():
-    """Manager dashboard - shows all flights"""
+    """Manager dashboard - shows all flights with optional filtering"""
     if not require_user_type(['manager']):
         return redirect("/manager?error=Access denied. Please log in as manager")
     
-    # Get all flights with details
+    # Get filter parameters from request (works for both GET and POST)
+    filter_date = request.form.get("filter_date") or request.args.get("filter_date")
+    filter_origin = request.form.get("filter_origin") or request.args.get("filter_origin")
+    filter_destination = request.form.get("filter_destination") or request.args.get("filter_destination")
+    filter_status = request.form.get("filter_status") or request.args.get("filter_status")
+    
+    # Get all airports for filter dropdowns
+    airports = get_all_airports()
+    
+    # Build query with optional filters
+    # For "Full" status, we need to check dynamically if flight has no available seats
     query = """
         SELECT f.flight_id, f.departure_time, f.departure_date, f.origin_airport_name,
             f.destination_airport_name, f.plane_id, f.status, ao.city as origin_city,
@@ -1069,20 +1114,65 @@ def manager_dashboard():
                 WHEN TIMESTAMPDIFF(HOUR, NOW(), CONCAT(f.departure_date, ' ', f.departure_time)) > 72 
                 THEN 1 
                 ELSE 0 
-            END as can_cancel
+            END as can_cancel,
+            (SELECT COUNT(*) FROM Seats s WHERE s.plane_id = f.plane_id) as total_seats,
+            (SELECT COUNT(*) FROM FlightTickets ft WHERE ft.flight_id = f.flight_id) as booked_seats
         FROM Flights f
         JOIN Airports ao ON f.origin_airport_name = ao.airport_name
         JOIN Airports ad ON f.destination_airport_name = ad.airport_name
-        ORDER BY f.departure_date DESC, f.departure_time DESC
+        WHERE 1=1
     """
     
+    params = []
+    
+    # Add filters if provided
+    if filter_date:
+        query += " AND f.departure_date = %s"
+        params.append(filter_date)
+    
+    if filter_origin:
+        query += " AND f.origin_airport_name = %s"
+        params.append(filter_origin)
+    
+    if filter_destination:
+        query += " AND f.destination_airport_name = %s"
+        params.append(filter_destination)
+    
+    if filter_status:
+        if filter_status == 'Full':
+            # For "Full" status, check if all seats are booked (status is 'Full' OR status is 'Active' and no seats available)
+            query += """ AND (
+                f.status = 'Full' 
+                OR (
+                    f.status = 'Active' 
+                    AND (SELECT COUNT(*) FROM Seats s WHERE s.plane_id = f.plane_id) = 
+                        (SELECT COUNT(*) FROM FlightTickets ft WHERE ft.flight_id = f.flight_id)
+                )
+            )"""
+        else:
+            query += " AND f.status = %s"
+            params.append(filter_status)
+    
+    query += " ORDER BY f.departure_date DESC, f.departure_time DESC"
+    
     try:
-        flights = data.sql_query(query)
+        flights = data.sql_query(query, *params)
     except Exception as e:
         print(f"Error fetching flights: {str(e)}")
         flights = []
     
-    return render_template("manager_dashboard.html", flights=flights)
+    # Prepare filter values for template (to keep form values after submission)
+    filter_values = {
+        'date': filter_date or '',
+        'origin': filter_origin or '',
+        'destination': filter_destination or '',
+        'status': filter_status or ''
+    }
+    
+    return render_template("manager_dashboard.html", 
+                        flights=flights, 
+                        airports=airports,
+                        filter_values=filter_values)
 
 @app.route("/manager/add_plane", methods=["GET", "POST"])
 def add_plane():
