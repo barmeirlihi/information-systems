@@ -26,6 +26,9 @@ except (OSError, PermissionError) as e:
         pass  # Will use default Flask session directory
 
 application = Flask(__name__)
+# Set secret key for sessions
+application.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+
 application.config.update(
     SESSION_TYPE="filesystem",
     SESSION_FILE_DIR=session_dir,
@@ -33,7 +36,9 @@ application.config.update(
     PERMANENT_SESSION_LIFETIME=timedelta(minutes=10),
     SESSION_REFRESH_EACH_REQUEST=False,
     SESSION_FILE_THRESHOLD=20,
-    SESSION_COOKIE_SECURE=True
+    SESSION_COOKIE_SECURE=False,  # Set to True only if using HTTPS
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax'
 )
 Session(application)
 
