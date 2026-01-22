@@ -1,5 +1,6 @@
 import mysql.connector
 from contextlib import contextmanager
+import os
 
 from mysql.connector import cursor
 @contextmanager
@@ -7,11 +8,17 @@ def db_cur():
     mydb = None
     cursor = None
     try:
-        mydb = mysql.connector.connect(host="localhost",
-                               user="root",
-                               password="root",
-                               database="flytau",
-                               autocommit=True)
+        DB_HOST = os.environ.get("DB_HOST", "awseb-e-a3qj6ivcmk-stack-awsebrdsdatabase-noappqk8etts.c14secq48pc3.il-central-1.rds.amazonaws.com")
+        DB_USER = os.environ.get("DB_USER", "flytau48")
+        DB_PASSWORD = os.environ.get("DB_PASSWORD", "fly48tau!")
+        DB_NAME=os.environ.get("DB_NAME", "ebdb")
+        mydb = mysql.connector.connect(
+            host=DB_HOST,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            database=DB_NAME,
+            autocommit=True
+        )
         cursor = mydb.cursor(buffered=True)
         yield cursor
     except mysql.connector.Error as err:
