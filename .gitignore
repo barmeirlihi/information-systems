@@ -8,3 +8,7 @@ flytau_database.sql
 flytau_database_utf8.sql
 .DS_Store
 flask_session_data
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml

@@ -66,15 +66,19 @@ def login():
         return redirect("/book_flights")
     
     if request.method == "POST":
-        email = request.form.get("email")
-        password = request.form.get("password")
-        stored_password = users.get_password(email)
-        if stored_password and stored_password == password:
-            session['user_type'] = 'user'
-            session['user_email'] = email
-            return redirect("/book_flights")
-        else:
-            return render_template("login.html", message='Incorrect Login Details.')
+        try:
+            email = request.form.get("email")
+            password = request.form.get("password")
+            stored_password = users.get_password(email)
+            if stored_password and stored_password == password:
+                session['user_type'] = 'user'
+                session['user_email'] = email
+                return redirect("/book_flights")
+            else:
+                return render_template("login.html", message='Incorrect Login Details.')
+        except Exception as e:
+            print(f"Login error: {e}")
+            return render_template("login.html", message='An error occurred. Please try again.')
     error = request.args.get('error')
     message = error if error else None
     return render_template("login.html", message=message)
@@ -143,36 +147,40 @@ def guest_page():
         return redirect("/book_flights")
     
     if request.method == "POST":
-        email = request.form.get("email")
-        first_name = request.form.get("first_name")
-        last_name = request.form.get("last_name")
-        phone = request.form.get("phone")
+        try:
+            email = request.form.get("email")
+            first_name = request.form.get("first_name")
+            last_name = request.form.get("last_name")
+            phone = request.form.get("phone")
 
-        # שלב א': אם יש רק email -> נבדוק מה הסטטוס שלו
-        if email and not (first_name and last_name and phone):
-            # 1. בדיקה האם הוא כבר קיים כאורח
-            if guest.is_guest(email):
+            # שלב א': אם יש רק email -> נבדוק מה הסטטוס שלו
+            if email and not (first_name and last_name and phone):
+                # 1. בדיקה האם הוא כבר קיים כאורח
+                if guest.is_guest(email):
+                    session['user_type'] = 'guest'
+                    session['user_email'] = email
+                    return redirect("/book_flights")
+                
+                # 2. בדיקה האם הוא קיים כמשתמש רשום
+                elif users.is_user(email):
+                    return render_template("login.html", message="You are a registered user. Please log in.")
+                
+                # 3. אם הוא לא אורח ולא רשום -> נטען את הדף עם השדות הפתוחים
+                else:
+                    return render_template("guest.html", show_details=True, email_value=email)
+
+            # שלב ב': אם שלחו לנו את כל הפרטים -> ניצור את האורח
+            elif email and first_name and last_name and phone:
+                # אם הגענו לכאן, זה אומר שהוא לא אורח ולא משתמש (כי זה נבדק בשלב א')
+                # אז ניצור אורח חדש
+                new_guest = Guest(email, first_name, last_name, [phone])
+                guest.add_guest(new_guest)
                 session['user_type'] = 'guest'
                 session['user_email'] = email
                 return redirect("/book_flights")
-            
-            # 2. בדיקה האם הוא קיים כמשתמש רשום
-            elif users.is_user(email):
-                return render_template("login.html", message="You are a registered user. Please log in.")
-            
-            # 3. אם הוא לא אורח ולא רשום -> נטען את הדף עם השדות הפתוחים
-            else:
-                return render_template("guest.html", show_details=True, email_value=email)
-
-        # שלב ב': אם שלחו לנו את כל הפרטים -> ניצור את האורח
-        elif email and first_name and last_name and phone:
-            # אם הגענו לכאן, זה אומר שהוא לא אורח ולא משתמש (כי זה נבדק בשלב א')
-            # אז ניצור אורח חדש
-            new_guest = Guest(email, first_name, last_name, [phone])
-            guest.add_guest(new_guest)
-            session['user_type'] = 'guest'
-            session['user_email'] = email
-            return redirect("/book_flights")
+        except Exception as e:
+            print(f"Guest page error: {e}")
+            return render_template("guest.html", error="An error occurred. Please try again.")
 
     return render_template("guest.html")
 

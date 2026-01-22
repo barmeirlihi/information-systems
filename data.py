@@ -17,7 +17,9 @@ def db_cur():
             user=DB_USER,
             password=DB_PASSWORD,
             database=DB_NAME,
-            autocommit=True
+            autocommit=True,
+            connection_timeout=10,
+            connect_timeout=10
         )
         cursor = mydb.cursor(buffered=True)
         yield cursor
@@ -31,10 +33,17 @@ def db_cur():
 
 
 def sql_query(query,*arg):
-    with db_cur() as mycursor:
-        mycursor.execute(query, arg)
-        result = mycursor.fetchall()
-    return result
+    try:
+        with db_cur() as mycursor:
+            mycursor.execute(query, arg)
+            result = mycursor.fetchall()
+        return result
+    except mysql.connector.Error as err:
+        print(f"Database query error: {err}")
+        raise
+    except Exception as e:
+        print(f"Unexpected error in sql_query: {e}")
+        raise
 
 def sql_insert(query,*arg):
     with db_cur() as mycursor:
