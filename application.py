@@ -287,14 +287,16 @@ def manager():
             return render_template("manager.html", message=error)
         
         #Get the password from the database
-        stored_manager_password = data.sql_query("""SELECT password FROM Managers WHERE manager_id = %s""", manager_id)
+        result = data.sql_query("""SELECT password FROM Managers WHERE manager_id = %s""", manager_id)
         #Check if the password is correct
-        if stored_manager_password and stored_manager_password == password:
-            session['user_type'] = 'manager'
-            session['manager_id'] = manager_id
-            return redirect("/manager/dashboard")
-        else:
-            return render_template("manager.html", message='Incorrect Login Details.')
+        if result and len(result) > 0:
+            stored_password = result[0][0]
+            if stored_password == password:
+                session['user_type'] = 'manager'
+                session['manager_id'] = manager_id
+                return redirect("/manager/dashboard")
+        
+        return render_template("manager.html", message='Incorrect Login Details.')
     error = request.args.get('error')
     message = error if error else None
     return render_template("manager.html", message=message)
@@ -1470,14 +1472,9 @@ def cancel_flight(flight_id):
     
     return render_template("confirm_cancel_flight.html", flight=flight_data)
 
-@application.route("/manager/confirm_cancel_flight/<int:flight_id>")
-def confirm_cancel_flight(flight_id):
-    """Redirect to cancel_flight for backward compatibility"""
-    return redirect(f"/manager/cancel_flight/{flight_id}")
-
 @application.route("/manager/add_employee", methods=["GET", "POST"])
 def add_employee():
-    """Add a new employee (Attendant or Pilot)"""
+    #Add a new employee (Attendant or Pilot)
     if not require_user_type(['manager']):
         return redirect("/manager?error=Access denied. Please log in as manager")
     
@@ -1541,20 +1538,6 @@ def add_employee():
                                  start_work_date=start_work_date,
                                  long_flight_certified=long_flight_certified or "0")
         
-        # Validate employee role
-        if employee_role not in ['Attendant', 'Pilot']:
-            return render_template("add_employee.html",
-                                 error="Invalid employee role. Please select Attendant or Pilot",
-                                 employee_role=employee_role,
-                                 employee_id=employee_id,
-                                 first_name_he=first_name_he,
-                                 last_name_he=last_name_he,
-                                 phone_number=phone_number,
-                                 city=city,
-                                 street=street,
-                                 house_number=house_number,
-                                 start_work_date=start_work_date,
-                                 long_flight_certified=long_flight_certified or "0")
         
         # Convert long_flight_certified to 0 or 1
         # If checkbox is not checked, it won't be in the form data, so it defaults to 0
