@@ -557,16 +557,14 @@ def confirm_booking(flight_id):
         if user_type == 'guest':
             if not order.user_data:
                 return redirect(f"/complete_booking/{flight_id}")
-            
+
             order.email = user_email
-            
             # Create order in DB (guest personal data NOT saved to DB)
             order_id, error = order.process_booking(order.flight, order.selected_seats)
         else:  # registered user
-            # Get user object (user is already logged in)
+            # Get user object 
             user = users.read_user(user_email)
-            
-            # Use add_order method - uses existing user data from DB
+            # Create order in DB using existing user data from DB
             order_id, error = user.add_order(order)
         
         if error:
@@ -602,6 +600,171 @@ def confirm_booking(flight_id):
                          user_type=user_type,
                          user_data=confirmation_data['user_data'])
 
+@application.route("/manage_orders", methods=["GET", "POST"])
+def manage_orders_for_guests():
+    user_type = session.get('user_type')
+    # Check if user is a manager
+    if user_type == 'manager':
+        return redirect("/?error=Managers cannot access the booking system. Please use the manager dashboard.")
+    
+    # Allow guests and users to access this page
+    if not require_user_type(['user', 'guest']):
+        return redirect("/?error=Please log in or continue as guest to manage orders")
+    
+    #Order management page for guests - requires order number
+    if request.method == "POST":
+        order_id = request.form.get("order_id", "").strip()
+        if not order_id:
+            return render_template("manage_orders.html", error="Please enter order number")
+        
+        order = Order.get_by_id(order_id)
+        if not order:
+            return render_template("manage_orders.html", error="Order not found")
+        
+        # Verify that the order belongs to the current user/guest
+        user_email = session.get('user_email')
+        if order.email != user_email:
+            return render_template("manage_orders.html", error="You don't have access to this order")
+        
+        # Get display status
+        status, _, final_price = order.get_display_status()
+        
+        # Calculate cancellation fee - use from status if cancelled, otherwise calculate for active orders
+        if status == 'Cancelled by Customer':
+            cancellation_fee = order.total_payment * 0.05
+        elif status == 'Active':
+            cancellation_fee = order.get_cancellation_fee()
+        else:
+            cancellation_fee = 0.0
+        
+        return render_template("order_details.html",
+                             order=order,
+                             display_status=status,
+                             cancellation_fee=cancellation_fee,
+                             final_price=final_price,
+                             is_guest=True)
+    
+    return render_template("manage_orders.html")
+
+@application.route("/my_orders")
+def my_orders_for_users():
+    #Order management page for registered users - shows all orders
+    if not require_user_type(['user']):
+        return redirect("/login?error=Please log in as a registered user to view your orders")
+    
+    user_email = session.get('user_email')
+    orders = Order.get_by_email(user_email)
+    
+    # Get display status for each order
+    orders_with_status = []
+    for order in orders:
+        status, cancellation_fee, final_price = order.get_display_status()
+        orders_with_status.append({
+            'order': order,
+            'display_status': status,
+            'cancellation_fee': cancellation_fee,
+            'final_price': final_price
+        })
+    
+    return render_template("my_orders.html", orders=orders_with_status)
+
+@application.route("/order_details/<int:order_id>")
+def order_details(order_id):
+    #View order details
+    user_type = session.get('user_type')
+    
+    # Check if user is a manager
+    if user_type == 'manager':
+        return redirect("/?error=Managers cannot access the booking system. Please use the manager dashboard.")
+    
+    # Check if user is logged in as user or guest
+    if not require_user_type(['user', 'guest']):
+        return redirect("/?error=Please log in or continue as guest to view order details")
+    
+    user_type = session.get('user_type')
+    user_email = session.get('user_email')
+    
+    order = Order.get_by_id(order_id)
+    if not order:
+        return render_template("error.html", error="Order not found")
+    
+    # Verify that the order belongs to the current user/guest
+    if order.email != user_email:
+        return render_template("error.html", error="You don't have access to this order")
+    
+    # Get display status
+    status, _, final_price = order.get_display_status()
+    
+    # Calculate cancellation fee - use from status if cancelled, otherwise calculate for active orders
+    if status == 'Cancelled by Customer':
+        cancellation_fee = order.total_payment * 0.05
+    elif status == 'Active':
+        cancellation_fee = order.get_cancellation_fee()
+    else:
+        cancellation_fee = 0.0
+    
+    is_guest = (user_type == 'guest')
+    
+    return render_template("order_details.html",
+                         order=order,
+                         display_status=status,
+                         cancellation_fee=cancellation_fee,
+                         final_price=final_price,
+                         is_guest=is_guest)
+
+@application.route("/cancel_order/<int:order_id>", methods=["GET", "POST"])
+def cancel_order(order_id):
+    #Handle order cancellation - GET shows confirmation page, POST cancels the order
+    user_type = session.get('user_type')
+    
+    # Check if user is a manager
+    if user_type == 'manager':
+        return redirect("/?error=Managers cannot access the booking system. Please use the manager dashboard.")
+    
+    # Check if user is logged in as user or guest
+    if not require_user_type(['user', 'guest']):
+        return redirect("/?error=Please log in or continue as guest to cancel order")
+    
+    user_email = session.get('user_email')
+    
+    order = Order.get_by_id(order_id)
+    if not order:
+        return render_template("error.html", error="Order not found")
+    
+    # Verify that the order belongs to the current user/guest
+    if order.email != user_email:
+        return render_template("error.html", error="You don't have access to this order")
+    
+    # Check if order can be cancelled
+    status, _, _ = order.get_display_status()
+    if status != 'Active':
+        return render_template("error.html", error="Order cannot be cancelled")
+    
+    # POST request - actually cancel the order
+    if request.method == "POST":
+        success, error_message = order.cancel_by_customer()
+        
+        if not success:
+            return render_template("error.html", error=error_message)
+        
+        # Redirect to orders page after successful cancellation
+        is_guest = (user_type == 'guest')
+        if is_guest:
+            return redirect(f"/order_details/{order_id}?success=Order cancelled successfully")
+        else:
+            return redirect("/my_orders?success=Order cancelled successfully")
+    
+    # GET request - show confirmation page
+    cancellation_fee = order.get_cancellation_fee()
+    is_guest = (user_type == 'guest')
+    
+    return render_template("confirm_cancel.html",
+                         order=order,
+                         cancellation_fee=cancellation_fee,
+                         is_guest=is_guest)
+
+
+""" Manager routes """
 @application.route("/flights_management")
 def flights_management():
     if not require_user_type(['manager']):
@@ -615,12 +778,19 @@ def flights_management():
                          airports=airports, 
                          today=today)
 
-@application.route("/flights_management/select_route", methods=["POST"])
+
+#Select route before creating a flight
+@application.route("/flights_management/select_route", methods=["GET", "POST"])
 def select_route():
-    """Step 1: Process route selection and move to step 2"""
+    #Step 1: Process route selection and move to step 2
     if not require_user_type(['manager']):
         return redirect("/manager?error=Access denied. Please log in as manager")
     
+    # Handle GET request - redirect to flights_management
+    if request.method == "GET":
+        return redirect("/flights_management")
+    
+    # POST request - process form data
     origin_airport = request.form.get("origin_airport", "").strip()
     destination_airport = request.form.get("destination_airport", "").strip()
     departure_date = request.form.get("departure_date", "").strip()
@@ -635,8 +805,8 @@ def select_route():
                              error="Please fill all required fields")
     
     # Get route information
-    route_info_result = get_flight_route_info(origin_airport, destination_airport)
-    if not route_info_result:
+    route_info = get_flight_route_info(origin_airport, destination_airport)
+    if not route_info:
         airports = get_all_airports()
         return render_template("flights_management.html", 
                              step=1,
@@ -644,38 +814,38 @@ def select_route():
                              today=date.today().isoformat(),
                              error="Route not found in database")
     
-    flight_duration, origin_country, destination_country = route_info_result
+    flight_duration, origin_country, destination_country = route_info #save the route information
     is_long = is_long_flight(flight_duration)
     
     # Calculate duration hours and minutes
     duration_hours = flight_duration // 60
     duration_minutes = flight_duration % 60
     
-    route_info = {
-        'duration_hours': duration_hours,
-        'duration_minutes': duration_minutes,
-        'is_long_flight': is_long
-    }
+    route_info = {'duration_hours': duration_hours,'duration_minutes': duration_minutes,
+        'is_long_flight': is_long} #save the route information to the dictionary
     
-    # Get available planes
+    # Get available planes (plane selection)
     available_planes = get_available_planes(origin_country, is_long_flight=is_long, 
                                           departure_date=departure_date, 
                                           departure_time=departure_time)
     
-    # Get crew requirements
+    # Get crew requirements for the next step 
     large_crew = get_crew_requirements('Large', is_long)
     small_crew = get_crew_requirements('Small', is_long)
     
-    # Get available pilots and attendants (will be filtered after plane selection)
-    available_pilots = get_available_pilots(origin_country, origin_airport=origin_airport,
-                                           is_long_flight=is_long,
-                                           departure_date=departure_date,
-                                           departure_time=departure_time)
-    
-    available_attendants = get_available_attendants(origin_country, origin_airport=origin_airport,
-                                                    is_long_flight=is_long,
-                                                    departure_date=departure_date,
-                                                    departure_time=departure_time)
+    # Save route info and available planes to session for next steps
+    session['flight_creation'] = {
+        'origin_airport': origin_airport,
+        'destination_airport': destination_airport,
+        'departure_date': departure_date,
+        'departure_time': departure_time,
+        'route_info': route_info,
+        'flight_duration': flight_duration,
+        'origin_country': origin_country,
+        'destination_country': destination_country,
+        'is_long': is_long,
+        'available_planes': available_planes
+    }
     
     return render_template("flights_management.html",
                          step=2,
@@ -687,21 +857,51 @@ def select_route():
                          available_planes=available_planes,
                          large_crew=large_crew,
                          small_crew=small_crew,
-                         available_pilots=available_pilots,
-                         available_attendants=available_attendants,
+                         available_pilots=[],
+                         available_attendants=[],
                          today=date.today().isoformat())
 
-@application.route("/flights_management/update_plane_selection", methods=["POST"])
-def update_plane_selection():
-    """Update plane selection and show crew selection"""
+#Select plane before selecting crew
+@application.route("/flights_management/plane_selection", methods=["GET", "POST"])
+def plane_selection():
     if not require_user_type(['manager']):
         return redirect("/manager?error=Access denied. Please log in as manager")
     
-    origin_airport = request.form.get("origin_airport")
-    destination_airport = request.form.get("destination_airport")
-    departure_date = request.form.get("departure_date")
-    departure_time = request.form.get("departure_time")
+    # Handle GET request - redirect to flights_management
+    if request.method == "GET":
+        return redirect("/flights_management")
+    
+    # POST request - process form data
+  
+    flight_data = session.get('flight_creation')
+    if not flight_data:
+        return redirect("/flights_management")
+    # Get route information from session 
+    origin_airport = flight_data['origin_airport']
+    destination_airport = flight_data['destination_airport']
+    departure_date = flight_data['departure_date']
+    departure_time = flight_data['departure_time']
+    route_info = flight_data['route_info']
+    origin_country = flight_data['origin_country']
+    is_long = flight_data['is_long']
+
     plane_id = request.form.get("plane_id")
+    
+    # change the selected plane to the session if it's already selected
+    if 'selected_plane_id' in flight_data:
+        plane_id = flight_data['selected_plane_id']
+    elif plane_id:
+        # Save selected plane to session (first time selection)
+        # Get plane size from available_planes
+        try:
+            plane_id_int = int(plane_id)
+            selected_plane = next((p for p in available_planes if p[0] == plane_id_int), None)
+            if selected_plane:
+                flight_data['selected_plane_id'] = plane_id
+                flight_data['selected_plane_size'] = selected_plane[2]  # Save plane size
+                session['flight_creation'] = flight_data
+        except (ValueError, TypeError):
+            pass  # Invalid plane_id, will be handled later
     
     # Get previously selected crew (if any)
     selected_pilot_ids = request.form.getlist("pilot_ids")
@@ -709,36 +909,14 @@ def update_plane_selection():
     price_economy = request.form.get("price_economy")
     price_business = request.form.get("price_business")
     
-    if not all([origin_airport, destination_airport, departure_date, departure_time]):
-        return redirect("/flights_management")
+    # Get available planes from session (already fetched in step 1)
+    available_planes = flight_data.get('available_planes', [])
     
-    # Get route information
-    route_info_result = get_flight_route_info(origin_airport, destination_airport)
-    if not route_info_result:
-        return redirect("/flights_management")
-    
-    flight_duration, origin_country, destination_country = route_info_result
-    is_long = is_long_flight(flight_duration)
-    
-    duration_hours = flight_duration // 60
-    duration_minutes = flight_duration % 60
-    
-    route_info = {
-        'duration_hours': duration_hours,
-        'duration_minutes': duration_minutes,
-        'is_long_flight': is_long
-    }
-    
-    # Get available planes
-    available_planes = get_available_planes(origin_country, is_long_flight=is_long, 
-                                          departure_date=departure_date, 
-                                          departure_time=departure_time)
-    
-    # Get crew requirements
+    # Get crew requirements (to display requirements)
     large_crew = get_crew_requirements('Large', is_long)
     small_crew = get_crew_requirements('Small', is_long)
     
-    # Get available pilots and attendants
+    # Get available pilots and attendants (needed in step 2 - crew selection)
     available_pilots = get_available_pilots(origin_country, origin_airport=origin_airport,
                                            is_long_flight=is_long,
                                            departure_date=departure_date,
@@ -748,29 +926,6 @@ def update_plane_selection():
                                                     is_long_flight=is_long,
                                                     departure_date=departure_date,
                                                     departure_time=departure_time)
-    
-    # Validate crew selection if plane is selected
-    pilot_error = None
-    attendant_error = None
-    crew_error = None
-    
-    if plane_id:
-        try:
-            plane_id_int = int(plane_id)
-            selected_plane = next((p for p in available_planes if p[0] == plane_id_int), None)
-            if selected_plane:
-                plane_size = selected_plane[2]
-                crew_reqs = large_crew if plane_size == 'Large' else small_crew
-                
-                # Check pilot selection
-                if len(selected_pilot_ids) > 0 and len(selected_pilot_ids) != crew_reqs['pilots']:
-                    pilot_error = f"Please select exactly {crew_reqs['pilots']} pilots"
-                
-                # Check attendant selection
-                if len(selected_attendant_ids) > 0 and len(selected_attendant_ids) != crew_reqs['attendants']:
-                    attendant_error = f"Please select exactly {crew_reqs['attendants']} attendants"
-        except ValueError:
-            pass
     
     return render_template("flights_management.html",
                          step=2,
@@ -781,6 +936,7 @@ def update_plane_selection():
                          route_info=route_info,
                          available_planes=available_planes,
                          selected_plane_id=plane_id,
+                         plane_locked=('selected_plane_id' in flight_data),
                          selected_pilot_ids=selected_pilot_ids,
                          selected_attendant_ids=selected_attendant_ids,
                          price_economy=price_economy,
@@ -789,22 +945,42 @@ def update_plane_selection():
                          small_crew=small_crew,
                          available_pilots=available_pilots,
                          available_attendants=available_attendants,
-                         pilot_error=pilot_error,
-                         attendant_error=attendant_error,
-                         crew_error=crew_error,
+                         pilot_error=None,
+                         attendant_error=None,
+                         crew_error=None,
                          today=date.today().isoformat())
 
 @application.route("/flights_management/add_flight", methods=["POST"])
-def add_flight_route():
-    """Add new flight to database"""
+def add_flight_with_crew():
     if not require_user_type(['manager']):
         return redirect("/manager?error=Access denied. Please log in as manager")
     
-    origin_airport = request.form.get("origin_airport")
-    destination_airport = request.form.get("destination_airport")
-    departure_date = request.form.get("departure_date")
-    departure_time = request.form.get("departure_time")
-    plane_id = request.form.get("plane_id")
+    # Get route information from session 
+    flight_data = session.get('flight_creation')
+    if not flight_data:
+        return redirect("/flights_management")
+    
+    origin_airport = flight_data['origin_airport']
+    destination_airport = flight_data['destination_airport']
+    departure_date = flight_data['departure_date']
+    departure_time = flight_data['departure_time']
+    origin_country = flight_data['origin_country']
+    is_long = flight_data['is_long']
+    route_info = flight_data['route_info']
+    
+    # Get plane_id and plane_size from session 
+    plane_id = flight_data.get('selected_plane_id')
+    plane_size = flight_data.get('selected_plane_size')
+    
+    if not plane_id or not plane_size:
+        return redirect("/flights_management")
+    
+    try:
+        plane_id_int = int(plane_id)
+    except (ValueError, TypeError):
+        return redirect("/flights_management")
+    
+    # Get form data
     price_economy = request.form.get("price_economy")
     price_business = request.form.get("price_business")
     
@@ -812,29 +988,17 @@ def add_flight_route():
     pilot_ids = request.form.getlist("pilot_ids")
     attendant_ids = request.form.getlist("attendant_ids")
     
-    # Get route information for error handling
-    route_info_result = get_flight_route_info(origin_airport, destination_airport)
-    if not route_info_result:
-        return redirect("/flights_management")
+    # Get available planes from session (already fetched in step 1)
+    available_planes = flight_data.get('available_planes', [])
     
-    flight_duration, origin_country, destination_country = route_info_result
-    is_long = is_long_flight(flight_duration)
-    
-    duration_hours = flight_duration // 60
-    duration_minutes = flight_duration % 60
-    
-    route_info = {
-        'duration_hours': duration_hours,
-        'duration_minutes': duration_minutes,
-        'is_long_flight': is_long
-    }
-    
-    # Get available planes and crew
-    available_planes = get_available_planes(origin_country, is_long_flight=is_long, 
-                                          departure_date=departure_date, 
-                                          departure_time=departure_time)
+    # Get crew requirements (to display requirements)
     large_crew = get_crew_requirements('Large', is_long)
     small_crew = get_crew_requirements('Small', is_long)
+    
+    # Get crew requirements based on plane size
+    crew_reqs = large_crew if plane_size == 'Large' else small_crew
+    
+    # Get available pilots and attendants needed for validation and error display
     available_pilots = get_available_pilots(origin_country, origin_airport=origin_airport,
                                            is_long_flight=is_long,
                                            departure_date=departure_date,
@@ -867,63 +1031,12 @@ def add_flight_route():
                              crew_error=crew_error,
                              today=date.today().isoformat())
     
-    # Convert plane_id to int
-    try:
-        plane_id_int = int(plane_id)
-    except ValueError:
-        crew_error = "Invalid plane ID"
-        return render_template("flights_management.html",
-                             step=2,
-                             origin_airport=origin_airport,
-                             destination_airport=destination_airport,
-                             departure_date=departure_date,
-                             departure_time=departure_time,
-                             route_info=route_info,
-                             available_planes=available_planes,
-                             selected_plane_id=plane_id,
-                             selected_pilot_ids=pilot_ids,
-                             selected_attendant_ids=attendant_ids,
-                             price_economy=price_economy,
-                             price_business=price_business,
-                             large_crew=large_crew,
-                             small_crew=small_crew,
-                             available_pilots=available_pilots,
-                             available_attendants=available_attendants,
-                             crew_error=crew_error,
-                             today=date.today().isoformat())
-    
-    # Get plane size for crew validation
-    selected_plane = next((p for p in available_planes if p[0] == plane_id_int), None)
-    if not selected_plane:
-        crew_error = "Selected plane not available"
-        return render_template("flights_management.html",
-                             step=2,
-                             origin_airport=origin_airport,
-                             destination_airport=destination_airport,
-                             departure_date=departure_date,
-                             departure_time=departure_time,
-                             route_info=route_info,
-                             available_planes=available_planes,
-                             selected_plane_id=plane_id,
-                             selected_pilot_ids=pilot_ids,
-                             selected_attendant_ids=attendant_ids,
-                             price_economy=price_economy,
-                             price_business=price_business,
-                             large_crew=large_crew,
-                             small_crew=small_crew,
-                             available_pilots=available_pilots,
-                             available_attendants=available_attendants,
-                             crew_error=crew_error,
-                             today=date.today().isoformat())
-    
-    plane_size = selected_plane[2]
-    crew_reqs = large_crew if plane_size == 'Large' else small_crew
-    
     # Validate crew selection
     pilot_error = None
     attendant_error = None
     crew_error = None
     
+    #check if the number of pilots and attendants is correct
     if len(pilot_ids) != crew_reqs['pilots']:
         pilot_error = f"Please select exactly {crew_reqs['pilots']} pilots"
         crew_error = f"Please select exactly {crew_reqs['pilots']} pilots and {crew_reqs['attendants']} attendants"
@@ -996,6 +1109,8 @@ def add_flight_route():
     )
     
     if success:
+        # Clear session after successful flight creation
+        session.pop('flight_creation', None)
         return render_template("flights_management.html",
                              step=1,
                              airports=get_all_airports(),
@@ -1025,220 +1140,14 @@ def add_flight_route():
                              crew_error=crew_error,
                              today=date.today().isoformat())
 
-@application.route("/manage_orders", methods=["GET", "POST"])
-def manage_orders():
-    """Order management page for guests - requires order number"""
-    user_type = session.get('user_type')
-    
-    # Check if user is a manager
-    if user_type == 'manager':
-        return redirect("/?error=Managers cannot access the booking system. Please use the manager dashboard.")
-    
-    # Allow guests and users to access this page
-    if not require_user_type(['user', 'guest']):
-        return redirect("/?error=Please log in or continue as guest to manage orders")
-    
-    if request.method == "POST":
-        order_id = request.form.get("order_id", "").strip()
-        if not order_id:
-            return render_template("manage_orders.html", error="Please enter order number")
-        
-        # Try to convert to int if possible, otherwise keep as string
-        try:
-            order_id = int(order_id)
-        except ValueError:
-            # Order ID might contain letters, keep as string
-            pass
-        
-        order = Order.get_by_id(order_id)
-        if not order:
-            return render_template("manage_orders.html", error="Order not found")
-        
-        # Verify that the order belongs to the current user/guest
-        user_email = session.get('user_email')
-        if order.email != user_email:
-            return render_template("manage_orders.html", error="You don't have access to this order")
-        
-        # Get display status
-        status, _, final_price = order.get_display_status()
-        
-        # Calculate cancellation fee - use from status if cancelled, otherwise calculate for active orders
-        if status == 'Cancelled by Customer':
-            cancellation_fee = order.total_payment * 0.05
-        elif status == 'Active':
-            cancellation_fee = order.get_cancellation_fee()
-        else:
-            cancellation_fee = 0.0
-        
-        return render_template("order_details.html",
-                             order=order,
-                             display_status=status,
-                             cancellation_fee=cancellation_fee,
-                             final_price=final_price,
-                             is_guest=True)
-    
-    return render_template("manage_orders.html")
-
-@application.route("/my_orders")
-def my_orders():
-    """Order management page for registered users - shows all orders"""
-    if not require_user_type(['user']):
-        return redirect("/login?error=Please log in as a registered user to view your orders")
-    
-    user_email = session.get('user_email')
-    orders = Order.get_by_email(user_email)
-    
-    # Get display status for each order
-    orders_with_status = []
-    for order in orders:
-        status, cancellation_fee, final_price = order.get_display_status()
-        orders_with_status.append({
-            'order': order,
-            'display_status': status,
-            'cancellation_fee': cancellation_fee,
-            'final_price': final_price
-        })
-    
-    return render_template("my_orders.html", orders=orders_with_status)
-
-@application.route("/order_details/<int:order_id>")
-def order_details(order_id):
-    """View order details"""
-    user_type = session.get('user_type')
-    
-    # Check if user is a manager
-    if user_type == 'manager':
-        return redirect("/?error=Managers cannot access the booking system. Please use the manager dashboard.")
-    
-    # Check if user is logged in as user or guest
-    if not require_user_type(['user', 'guest']):
-        return redirect("/?error=Please log in or continue as guest to view order details")
-    
-    user_type = session.get('user_type')
-    user_email = session.get('user_email')
-    
-    order = Order.get_by_id(order_id)
-    if not order:
-        return render_template("error.html", error="Order not found")
-    
-    # Verify that the order belongs to the current user/guest
-    if order.email != user_email:
-        return render_template("error.html", error="You don't have access to this order")
-    
-    # Get display status
-    status, _, final_price = order.get_display_status()
-    
-    # Calculate cancellation fee - use from status if cancelled, otherwise calculate for active orders
-    if status == 'Cancelled by Customer':
-        cancellation_fee = order.total_payment * 0.05
-    elif status == 'Active':
-        cancellation_fee = order.get_cancellation_fee()
-    else:
-        cancellation_fee = 0.0
-    
-    is_guest = (user_type == 'guest')
-    
-    return render_template("order_details.html",
-                         order=order,
-                         display_status=status,
-                         cancellation_fee=cancellation_fee,
-                         final_price=final_price,
-                         is_guest=is_guest)
-
-@application.route("/confirm_cancel/<int:order_id>")
-def confirm_cancel(order_id):
-    """Confirmation page before cancelling an order"""
-    user_type = session.get('user_type')
-    
-    # Check if user is a manager
-    if user_type == 'manager':
-        return redirect("/?error=Managers cannot access the booking system. Please use the manager dashboard.")
-    
-    # Check if user is logged in as user or guest
-    if not require_user_type(['user', 'guest']):
-        return redirect("/?error=Please log in or continue as guest to cancel order")
-    
-    user_type = session.get('user_type')
-    user_email = session.get('user_email')
-    
-    order = Order.get_by_id(order_id)
-    if not order:
-        return render_template("error.html", error="Order not found")
-    
-    # Verify that the order belongs to the current user/guest
-    if order.email != user_email:
-        return render_template("error.html", error="You don't have access to this order")
-    
-    # Check if order can be cancelled
-    status, _, _ = order.get_display_status()
-    if status != 'Active':
-        return render_template("error.html", error="Order cannot be cancelled")
-    
-    # Calculate cancellation fee (5% of total payment) for active orders
-    cancellation_fee = order.get_cancellation_fee()
-    
-    is_guest = (user_type == 'guest')
-    
-    return render_template("confirm_cancel.html",
-                         order=order,
-                         cancellation_fee=cancellation_fee,
-                         is_guest=is_guest)
-
-@application.route("/cancel_order/<int:order_id>", methods=["POST"])
-def cancel_order(order_id):
-    """Cancel an order"""
-    user_type = session.get('user_type')
-    
-    # Check if user is a manager
-    if user_type == 'manager':
-        return redirect("/?error=Managers cannot access the booking system. Please use the manager dashboard.")
-    
-    # Check if user is logged in as user or guest
-    if not require_user_type(['user', 'guest']):
-        return redirect("/?error=Please log in or continue as guest to cancel order")
-    
-    user_type = session.get('user_type')
-    user_email = session.get('user_email')
-    
-    order = Order.get_by_id(order_id)
-    if not order:
-        return render_template("error.html", error="Order not found")
-    
-    # Verify that the order belongs to the current user/guest
-    if order.email != user_email:
-        return render_template("error.html", error="You don't have access to this order")
-    
-    # Check if order can be cancelled
-    status, cancellation_fee, _ = order.get_display_status()
-    if status != 'Active':
-        return render_template("error.html", error="Order cannot be cancelled")
-    
-    # Cancel the order
-    success, error_msg = order.cancel_by_customer()
-    if not success:
-        return render_template("error.html", error=error_msg)
-    
-    # Reload order to get updated status
-    order = Order.get_by_id(order_id)
-    status, cancellation_fee, final_price = order.get_display_status()
-    
-    # Redirect based on user type
-    if user_type == 'guest':
-        return render_template("order_details.html",
-                             order=order, display_status=status,
-                             cancellation_fee=cancellation_fee,
-                             final_price=final_price, is_guest=True,
-                             cancelled=True)
-    else:
-        return redirect("/my_orders")
 
 @application.route("/manager/dashboard", methods=["GET", "POST"])
 def manager_dashboard():
-    """Manager dashboard - shows all flights with optional filtering"""
+    #Manager dashboard - shows all flights with optional filtering
     if not require_user_type(['manager']):
         return redirect("/manager?error=Access denied. Please log in as manager")
     
-    # Get filter parameters from request (works for both GET and POST)
+    # Get filter parameters from request 
     filter_date = request.form.get("filter_date") or request.args.get("filter_date")
     filter_origin = request.form.get("filter_origin") or request.args.get("filter_origin")
     filter_destination = request.form.get("filter_destination") or request.args.get("filter_destination")
@@ -1247,63 +1156,8 @@ def manager_dashboard():
     # Get all airports for filter dropdowns
     airports = get_all_airports()
     
-    # Build query with optional filters
-    # For "Full" status, we need to check dynamically if flight has no available seats
-    query = """
-        SELECT f.flight_id, f.departure_time, f.departure_date, f.origin_airport_name,
-            f.destination_airport_name, f.plane_id, f.status, ao.city as origin_city,
-            ao.country as origin_country, ad.city as destination_city,
-            ad.country as destination_country,
-            CASE 
-                WHEN TIMESTAMPDIFF(HOUR, NOW(), CONCAT(f.departure_date, ' ', f.departure_time)) > 72 
-                THEN 1 
-                ELSE 0 
-            END as can_cancel,
-            (SELECT COUNT(*) FROM Seats s WHERE s.plane_id = f.plane_id) as total_seats,
-            (SELECT COUNT(*) FROM FlightTickets ft WHERE ft.flight_id = f.flight_id) as booked_seats
-        FROM Flights f
-        JOIN Airports ao ON f.origin_airport_name = ao.airport_name
-        JOIN Airports ad ON f.destination_airport_name = ad.airport_name
-        WHERE 1=1
-    """
-    
-    params = []
-    
-    # Add filters if provided
-    if filter_date:
-        query += " AND f.departure_date = %s"
-        params.append(filter_date)
-    
-    if filter_origin:
-        query += " AND f.origin_airport_name = %s"
-        params.append(filter_origin)
-    
-    if filter_destination:
-        query += " AND f.destination_airport_name = %s"
-        params.append(filter_destination)
-    
-    if filter_status:
-        if filter_status == 'Full':
-            # For "Full" status, check if all seats are booked (status is 'Full' OR status is 'Active' and no seats available)
-            query += """ AND (
-                f.status = 'Full' 
-                OR (
-                    f.status = 'Active' 
-                    AND (SELECT COUNT(*) FROM Seats s WHERE s.plane_id = f.plane_id) = 
-                        (SELECT COUNT(*) FROM FlightTickets ft WHERE ft.flight_id = f.flight_id)
-                )
-            )"""
-        else:
-            query += " AND f.status = %s"
-            params.append(filter_status)
-    
-    query += " ORDER BY f.departure_date DESC, f.departure_time DESC"
-    
-    try:
-        flights = data.sql_query(query, *params)
-    except Exception as e:
-        print(f"Error fetching flights: {str(e)}")
-        flights = []
+    # Get flights with filters
+    flights = get_manager_flights(filter_date, filter_origin, filter_destination, filter_status)
     
     # Prepare filter values for template (to keep form values after submission)
     filter_values = {
@@ -1320,15 +1174,17 @@ def manager_dashboard():
 
 @application.route("/manager/add_plane", methods=["GET", "POST"])
 def add_plane():
-    """Add a new plane to the fleet - two step process"""
+    #Add a new plane to the fleet - two step process
     if not require_user_type(['manager']):
         return redirect("/manager?error=Access denied. Please log in as manager")
     
-    step = request.args.get('step', '1')
+    # check if the plane is already created
+    plane_data = session.get('plane_creation')
+    is_step_2 = plane_data is not None
     
     if request.method == "POST":
-        # Step 1: Plane basic details
-        if step == '1':
+        if not is_step_2:
+            # Step 1: Plane basic details
             plane_id = request.form.get("plane_id")
             manufacturer = request.form.get("manufacturer")
             size = request.form.get("size")
@@ -1344,34 +1200,17 @@ def add_plane():
                                      size=size or "",
                                      purchase_date=purchase_date or "")
             
-            # Validate manufacturer
-            valid_manufacturers = ['Boeing', 'Airbus', 'Dassault']
-            if manufacturer not in valid_manufacturers:
-                return render_template("add_plane.html",
-                                     step=1,
-                                     error="Invalid manufacturer. Please select Boeing, Airbus, or Dassault",
-                                     plane_id=plane_id,
-                                     manufacturer=manufacturer,
-                                     size=size,
-                                     purchase_date=purchase_date)
-            
-            # Validate size
-            valid_sizes = ['Large', 'Small']
-            if size not in valid_sizes:
-                return render_template("add_plane.html",
-                                     step=1,
-                                     error="Invalid size. Please select Large or Small",
-                                     plane_id=plane_id,
-                                     manufacturer=manufacturer,
-                                     size=size,
-                                     purchase_date=purchase_date)
-            
-            # Try to convert plane_id to int if possible, otherwise keep as string
+            # Validate plane_id is an integer
             try:
                 plane_id_int = int(plane_id)
             except ValueError:
-                # Plane ID might not be numeric, keep as string
-                plane_id_int = plane_id
+                return render_template("add_plane.html",
+                                     step=1,
+                                     error="Please enter a plane ID that contains only numbers",
+                                     plane_id=plane_id or "",
+                                     manufacturer=manufacturer or "",
+                                     size=size or "",
+                                     purchase_date=purchase_date or "")
             
             # Check if plane_id already exists
             existing_plane = data.sql_query("SELECT plane_id FROM Planes WHERE plane_id = %s", plane_id_int)
@@ -1384,42 +1223,29 @@ def add_plane():
                                      size=size,
                                      purchase_date=purchase_date)
             
-            # Insert plane into database
-            try:
-                data.sql_insert(
-                    "INSERT INTO Planes (plane_id, manufacturer, size, purchase_date) VALUES (%s, %s, %s, %s)",
-                    plane_id_int, manufacturer, size, purchase_date
-                )
-                # Move to step 2 - seat configuration
-                return render_template("add_plane.html",
-                                     step=2,
-                                     plane_id=plane_id_int,
-                                     size=size,
-                                     manufacturer=manufacturer,
-                                     purchase_date=purchase_date)
-            except Exception as e:
-                return render_template("add_plane.html",
-                                     step=1,
-                                     error=f"Error adding plane: {str(e)}",
-                                     plane_id=plane_id,
-                                     manufacturer=manufacturer,
-                                     size=size,
-                                     purchase_date=purchase_date)
+            # Save plane info to session for step 2
+            session['plane_creation'] = {
+                'plane_id': plane_id_int,
+                'size': size,
+                'manufacturer': manufacturer,
+                'purchase_date': purchase_date
+            }
+            # Move to step 2 - seat configuration
+            return render_template("add_plane.html",
+                                 step=2,
+                                 plane_id=plane_id_int,
+                                 size=size,
+                                 manufacturer=manufacturer,
+                                 purchase_date=purchase_date)
         
-        # Step 2: Seat configuration
-        elif step == '2':
-            plane_id = request.form.get("plane_id")
-            size = request.form.get("size")
+        else:
+            if not plane_data:
+                return redirect("/manager/add_plane")
             
-            try:
-                plane_id_int = int(plane_id)
-            except ValueError:
-                return redirect("/manager/add_plane?step=1")
-            
-            # Validate plane exists
-            existing_plane = data.sql_query("SELECT plane_id FROM Planes WHERE plane_id = %s", plane_id_int)
-            if not existing_plane:
-                return redirect("/manager/add_plane?step=1")
+            plane_id_int = plane_data['plane_id']
+            size = plane_data['size']
+            manufacturer = plane_data['manufacturer']
+            purchase_date = plane_data['purchase_date']
             
             # Get seat configuration based on plane size
             if size == 'Small':
@@ -1449,6 +1275,12 @@ def add_plane():
                                              economy_rows=economy_rows,
                                              economy_seats_per_row=economy_seats_per_row)
                     
+                    # Insert plane into database (only after all seats are created)
+                    data.sql_insert(
+                        "INSERT INTO Planes (plane_id, manufacturer, size, purchase_date) VALUES (%s, %s, %s, %s)",
+                        plane_id_int, manufacturer, size, purchase_date
+                    )
+                    
                     # Insert seats for Economy class
                     for row in range(1, economy_rows_int + 1):
                         for col in range(1, economy_seats_int + 1):
@@ -1456,6 +1288,9 @@ def add_plane():
                                 "INSERT INTO Seats (plane_id, seat_row, seat_column, seat_class) VALUES (%s, %s, %s, %s)",
                                 plane_id_int, row, col, 'Economy'
                             )
+                    
+                    # Clear session after successful creation
+                    session.pop('plane_creation', None)
                     
                     return render_template("add_plane.html",
                                          step=3,
@@ -1506,6 +1341,12 @@ def add_plane():
                                              economy_rows=economy_rows,
                                              economy_seats_per_row=economy_seats_per_row)
                     
+                    # Insert plane into database (only after all seats are created)
+                    data.sql_insert(
+                        "INSERT INTO Planes (plane_id, manufacturer, size, purchase_date) VALUES (%s, %s, %s, %s)",
+                        plane_id_int, manufacturer, size, purchase_date
+                    )
+                    
                     # Insert seats for Business class
                     for row in range(1, business_rows_int + 1):
                         for col in range(1, business_seats_int + 1):
@@ -1523,6 +1364,9 @@ def add_plane():
                                 "INSERT INTO Seats (plane_id, seat_row, seat_column, seat_class) VALUES (%s, %s, %s, %s)",
                                 plane_id_int, row, col, 'Economy'
                             )
+                    
+                    # Clear session after successful creation
+                    session.pop('plane_creation', None)
                     
                     return render_template("add_plane.html",
                                          step=3,
@@ -1550,21 +1394,27 @@ def add_plane():
                                          economy_rows=economy_rows,
                                          economy_seats_per_row=economy_seats_per_row)
     
-    # GET request - show form
-    if step == '2':
-        # Should not reach here via GET for step 2, redirect to step 1
-        return redirect("/manager/add_plane?step=1")
-    
-    return render_template("add_plane.html",
-                         step=1,
-                         plane_id="",
-                         manufacturer="",
-                         size="",
-                         purchase_date="")
+    # GET request - show form based on session
+    if is_step_2:
+        # Show step 2 form (seat configuration)
+        return render_template("add_plane.html",
+                             step=2,
+                             plane_id=plane_data['plane_id'],
+                             size=plane_data['size'],
+                             manufacturer=plane_data['manufacturer'],
+                             purchase_date=plane_data['purchase_date'])
+    else:
+        # Show step 1 form (plane basic details)
+        return render_template("add_plane.html",
+                             step=1,
+                             plane_id="",
+                             manufacturer="",
+                             size="",
+                             purchase_date="")
 
 @application.route("/manager/reports")
 def manager_reports():
-    """Manager reports page - shows analytics and charts"""
+    #Manager reports page - shows analytics and charts
     if not require_user_type(['manager']):
         return redirect("/manager?error=Access denied. Please log in as manager")
     
@@ -1585,9 +1435,9 @@ def manager_reports():
                          total_passengers=reports_data['total_passengers'],
                          charts=charts)
 
-@application.route("/manager/confirm_cancel_flight/<int:flight_id>")
-def confirm_cancel_flight(flight_id):
-    """Confirmation page before cancelling a flight"""
+@application.route("/manager/cancel_flight/<int:flight_id>", methods=["GET", "POST"])
+def cancel_flight(flight_id):
+    #Handle flight cancellation - GET shows confirmation page, POST cancels the flight
     if not require_user_type(['manager']):
         return redirect("/manager?error=Access denied. Please log in as manager")
     
@@ -1595,7 +1445,19 @@ def confirm_cancel_flight(flight_id):
     if not flight:
         return render_template("error.html", error="Flight not found")
     
-    # Prepare flight data for template
+    # POST request - actually cancel the flight
+    if request.method == "POST":
+        if flight.status == 'Cancelled':
+            return redirect("/manager/dashboard")
+        
+        # Cancel the flight
+        success, error_msg = flight.cancel_flight()
+        if not success:
+            return render_template("error.html", error=error_msg)
+        
+        return redirect("/manager/dashboard")
+    
+    # GET request - show confirmation page
     flight_data = {
         'flight_id': flight.flight_id,
         'departure_date': flight.departure_date,
@@ -1608,25 +1470,10 @@ def confirm_cancel_flight(flight_id):
     
     return render_template("confirm_cancel_flight.html", flight=flight_data)
 
-@application.route("/manager/cancel_flight/<int:flight_id>", methods=["POST"])
-def cancel_flight(flight_id):
-    """Cancel a flight"""
-    if not require_user_type(['manager']):
-        return redirect("/manager?error=Access denied. Please log in as manager")
-    
-    flight = Flight.get_flight_by_id(flight_id, include_all_statuses=True)
-    if not flight:
-        return render_template("error.html", error="Flight not found")
-    
-    if flight.status == 'Cancelled':
-        return redirect("/manager/dashboard")
-    
-    # Cancel the flight
-    success, error_msg = flight.cancel_flight()
-    if not success:
-        return render_template("error.html", error=error_msg)
-    
-    return redirect("/manager/dashboard")
+@application.route("/manager/confirm_cancel_flight/<int:flight_id>")
+def confirm_cancel_flight(flight_id):
+    """Redirect to cancel_flight for backward compatibility"""
+    return redirect(f"/manager/cancel_flight/{flight_id}")
 
 @application.route("/manager/add_employee", methods=["GET", "POST"])
 def add_employee():

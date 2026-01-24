@@ -958,6 +958,69 @@ def get_flight_route_info(origin_airport, destination_airport):
     return None
 
 
+def get_manager_flights(filter_date=None, filter_origin=None, filter_destination=None, filter_status=None):
+    """
+    Get flights for manager dashboard with optional filters
+    Returns list of flights with additional info (cities, countries, seat counts, can_cancel)
+    """
+    # Build query with optional filters
+    query = """
+        SELECT f.flight_id, f.departure_time, f.departure_date, f.origin_airport_name,
+            f.destination_airport_name, f.plane_id, f.status, ao.city as origin_city,
+            ao.country as origin_country, ad.city as destination_city,
+            ad.country as destination_country,
+            CASE 
+                WHEN TIMESTAMPDIFF(HOUR, NOW(), CONCAT(f.departure_date, ' ', f.departure_time)) > 72 
+                THEN 1 
+                ELSE 0 
+            END as can_cancel,
+            (SELECT COUNT(*) FROM Seats s WHERE s.plane_id = f.plane_id) as total_seats,
+            (SELECT COUNT(*) FROM FlightTickets ft WHERE ft.flight_id = f.flight_id) as booked_seats
+        FROM Flights f
+        JOIN Airports ao ON f.origin_airport_name = ao.airport_name
+        JOIN Airports ad ON f.destination_airport_name = ad.airport_name
+        WHERE 1=1
+    """
+    
+    params = []
+    
+    # Add filters if provided
+    if filter_date:
+        query += " AND f.departure_date = %s"
+        params.append(filter_date)
+    
+    if filter_origin:
+        query += " AND f.origin_airport_name = %s"
+        params.append(filter_origin)
+    
+    if filter_destination:
+        query += " AND f.destination_airport_name = %s"
+        params.append(filter_destination)
+    
+    if filter_status:
+        if filter_status == 'Full':
+            # For "Full" status, check if all seats are booked (status is 'Full' OR status is 'Active' and no seats available)
+            query += """ AND (
+                f.status = 'Full' 
+                OR (
+                    f.status = 'Active' 
+                    AND (SELECT COUNT(*) FROM Seats s WHERE s.plane_id = f.plane_id) = 
+                        (SELECT COUNT(*) FROM FlightTickets ft WHERE ft.flight_id = f.flight_id)
+                )
+            )"""
+        else:
+            query += " AND f.status = %s"
+            params.append(filter_status)
+    
+    query += " ORDER BY f.departure_date DESC, f.departure_time DESC"
+    
+    try:
+        flights = data.sql_query(query, *params)
+        return flights
+    except Exception as e:
+        print(f"Error fetching flights: {str(e)}")
+        return []
+
 def get_next_flight_id():
     """Gets the next available flight_id"""
     query = "SELECT MAX(flight_id) FROM Flights"

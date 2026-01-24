@@ -392,7 +392,7 @@
                     </td>
                     <td>
                         {% if flight[6] == 'Active' and flight[11] == 1 %}
-                        <a href="/manager/confirm_cancel_flight/{{ flight[0] }}" class="cancel-btn" style="text-decoration: none; display: inline-block;">Cancel Flight</a>
+                        <a href="/manager/cancel_flight/{{ flight[0] }}" class="cancel-btn" style="text-decoration: none; display: inline-block;">Cancel Flight</a>
                         {% elif flight[6] == 'Active' and flight[11] == 0 %}
                         <button class="cancel-btn" disabled title="Cannot cancel flight less than 72 hours before departure">Cancel Flight</button>
                         {% else %}

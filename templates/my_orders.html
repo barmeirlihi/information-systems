@@ -255,7 +255,7 @@
                     </div>
                     <div style="display: flex; gap: 0.5rem;">
                         {% if item.display_status == 'Active' %}
-                        <a href="/confirm_cancel/{{ item.order.order_id }}" class="cancel-btn">Cancel Order</a>
+                        <a href="/cancel_order/{{ item.order.order_id }}" class="cancel-btn">Cancel Order</a>
                         {% endif %}
                         <a href="/order_details/{{ item.order.order_id }}" class="view-btn">View Details</a>
                     </div>
