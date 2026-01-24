@@ -628,16 +628,8 @@ def manage_orders_for_guests():
         if order.email != user_email:
             return render_template("manage_orders.html", error="You don't have access to this order")
         
-        # Get display status
-        status, _, final_price = order.get_display_status()
-        
-        # Calculate cancellation fee - use from status if cancelled, otherwise calculate for active orders
-        if status == 'Cancelled by Customer':
-            cancellation_fee = order.total_payment * 0.05
-        elif status == 'Active':
-            cancellation_fee = order.get_cancellation_fee()
-        else:
-            cancellation_fee = 0.0
+        # Get display status (returns status, cancellation_fee, final_price)
+        status, cancellation_fee, final_price = order.get_display_status()
         
         return render_template("order_details.html",
                              order=order,
@@ -694,16 +686,8 @@ def order_details(order_id):
     if order.email != user_email:
         return render_template("error.html", error="You don't have access to this order")
     
-    # Get display status
-    status, _, final_price = order.get_display_status()
-    
-    # Calculate cancellation fee - use from status if cancelled, otherwise calculate for active orders
-    if status == 'Cancelled by Customer':
-        cancellation_fee = order.total_payment * 0.05
-    elif status == 'Active':
-        cancellation_fee = order.get_cancellation_fee()
-    else:
-        cancellation_fee = 0.0
+    # Get display status (returns status, cancellation_fee, final_price)
+    status, cancellation_fee, final_price = order.get_display_status()
     
     is_guest = (user_type == 'guest')
     
