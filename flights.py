@@ -4,8 +4,7 @@ from abc import ABC, abstractmethod
 
 
 class Seat:
-    """Represents a single seat on a plane"""
-    
+    #Represents a single seat on a plane
     def __init__(self, plane_id, row, column, seat_class):
         self.plane_id = plane_id
         self.row = row
@@ -16,12 +15,12 @@ class Seat:
         return f"Seat({self.row}-{self.column}, {self.seat_class})"
     
     def get_seat_key(self):
-        """Returns tuple (row, column) for seat identification"""
+        #Returns tuple (row, column) for seat identification
         return (self.row, self.column)
     
     @staticmethod
     def get_seats_for_plane(plane_id):
-        """Static method to get all seats for a plane from database"""
+        #Static method to get all seats for a plane from database
         query = """
             SELECT seat_row, seat_column, seat_class
             FROM Seats
@@ -33,8 +32,7 @@ class Seat:
 
 
 class Flight(ABC):
-    """Abstract base class for flights"""
-    
+    #Abstract base class for flights
     def __init__(self, flight_id, departure_time, departure_date, status, 
                  plane_id, origin_airport, destination_airport, 
                  price_economy, price_business=None, 
@@ -60,17 +58,17 @@ class Flight(ABC):
     
     @abstractmethod
     def get_plane_size(self):
-        """Returns the size of the plane ('Small' or 'Large')"""
+        #Returns the size of the plane ('Small' or 'Large')
         pass
     
     def get_seats(self):
-        """Lazy loading of seats - loads from database if not already loaded"""
+        #loads from database if not already loaded
         if self._seats is None:
             self._seats = Seat.get_seats_for_plane(self.plane_id)
         return self._seats
     
     def get_booked_seats(self):
-        """Gets set of booked seats for this flight"""
+        #Gets set of booked seats for this flight
         if self._booked_seats is None:
             query = """
                 SELECT seat_row, seat_column
@@ -82,18 +80,18 @@ class Flight(ABC):
         return self._booked_seats
     
     def is_seat_available(self, row, column):
-        """Checks if a specific seat is available"""
+        #Checks if a specific seat is available
         return (row, column) not in self.get_booked_seats()
     
     def get_seat_by_position(self, row, column):
-        """Gets a Seat object by row and column"""
+        #Gets a Seat object by row and column
         for seat in self.get_seats():
             if seat.row == row and seat.column == column:
                 return seat
         return None
     
     def calculate_seat_price(self, seat):
-        """Calculates the price for a specific seat"""
+        #Calculates the price for a specific seat
         if seat.seat_class == 'Business':
             if self.price_business is None:
                 return None
@@ -101,7 +99,7 @@ class Flight(ABC):
         return self.price_economy
     
     def organize_seats_by_row(self):
-        """Organizes seats by row and marks which are booked"""
+        #Organizes seats by row and marks which are booked
         seats = self.get_seats()
         booked_seats = self.get_booked_seats()
         
@@ -123,20 +121,17 @@ class Flight(ABC):
         return seats_by_row
     
     def get_available_seats_count(self):
-        """Returns the number of available seats"""
+        #Returns the number of available seats
         total_seats = len(self.get_seats())
         booked_seats = len(self.get_booked_seats())
         return total_seats - booked_seats
     
     def is_full(self):
-        """Checks if flight is full (all seats booked)"""
+        #Checks if flight is full (all seats booked)
         return self.get_available_seats_count() == 0
     
     def update_status_if_full(self):
-        """
-        Updates flight status to 'Full' if all seats are booked and status is 'Active'
-        Returns True if status was updated, False otherwise
-        """
+        #Updates flight status to 'Full' if all seats are booked and status is 'Active'
         if self.status == 'Active' and self.is_full():
             try:
                 query = """
@@ -153,10 +148,8 @@ class Flight(ABC):
         return False
     
     def validate_seat_selection(self, selected_seats):
-        """
-        Validates selected seats and calculates total price
-        Returns: (total_price, seat_details, error_message)
-        """
+        #Validates selected seats and calculates total price
+
         # Check if flight is full or cancelled
         if self.status == 'Full':
             return None, None, "This flight is full. No more seats available."
@@ -201,7 +194,7 @@ class Flight(ABC):
         return total_price, seat_details, None
     
     def book_seats(self, order_id, seat_details):
-        """Books multiple seats for this flight"""
+        #Books multiple seats for this flight
         for seat_row, seat_column, seat_class in seat_details:
             query = """
                 INSERT INTO FlightTickets (order_id, flight_id, plane_id, seat_row, seat_column)
@@ -216,12 +209,7 @@ class Flight(ABC):
         self.update_status_if_full()
     
     def cancel_order_seats(self, order_id):
-        """
-        Cancels seats for a specific order (frees up seats)
-        
-        Args:
-            order_id: Order ID to cancel seats for
-        """
+        #Cancels seats for a specific order (frees up seats)
         query = """
             DELETE FROM FlightTickets
             WHERE order_id = %s AND flight_id = %s
@@ -231,14 +219,7 @@ class Flight(ABC):
         self._booked_seats = None
     
     def cancel_flight(self):
-        """
-        Cancels the flight - updates status to 'Cancelled'
-        Also updates all related orders to 'Cancelled by System' and sets total_payment to 0
-        (full refund for customers)
-        
-        Returns:
-            (success, error_message)
-        """
+        #Cancels the flight - updates status to 'Cancelled'
         try:
             # Update flight status
             query = """
@@ -267,7 +248,7 @@ class Flight(ABC):
             return False, f"Error cancelling flight: {str(e)}"
     
     def get_destination_image(self):
-        """Returns URL of destination image"""
+        #Returns URL of destination image
         destination_images = {
             'TLV': 'https://www.atarim.gov.il/wp-content/uploads/2020/06/Screenshot_1.png',
             'JFK': 'https://www.masa.co.il/wp-content/uploads/2017/10/nyc_open.jpg',
@@ -289,14 +270,7 @@ class Flight(ABC):
     
     @staticmethod
     def get_flight_by_id(flight_id, include_all_statuses=False):
-        """
-        Factory method to create appropriate Flight subclass from database
-        
-        Args:
-            flight_id: Flight ID
-            include_all_statuses: If True, includes all flights regardless of status.
-                                 If False, only returns Active flights.
-        """
+        #Factory method to create appropriate Flight subclass from database
         query = """
             SELECT 
                 f.flight_id,
