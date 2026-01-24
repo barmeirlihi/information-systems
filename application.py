@@ -251,7 +251,13 @@ def guest_page():
                 
                 # Create new guest
                 new_guest = Guest(email, first_name, last_name, [phone])
-                guest.add_guest(new_guest)
+                success = guest.add_guest(new_guest)
+                if not success:
+                    # This shouldn't happen if we checked above, but just in case
+                    return render_template("guest.html", 
+                                         message="An error occurred. Please try again.",
+                                         show_details=True, email_value=email,
+                                         first_name=first_name, last_name=last_name, phone=phone)
                 session['user_type'] = 'guest'
                 session['user_email'] = email
                 return redirect("/book_flights")

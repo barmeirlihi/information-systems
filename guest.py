@@ -86,7 +86,7 @@ def read_guest(email):
     # שליפה מהדאטה בייס
     result = data.sql_query("""SELECT u.email, u.first_name, u.last_name
                                FROM Users as u
-                               JOIN guests as g ON g.UserEmail = u.email
+                               JOIN Guests as g ON g.UserEmail = u.email
                                WHERE u.email = %s""", email)
 
     if not result:
@@ -109,7 +109,7 @@ def read_guest(email):
 
 def is_guest(email):
     try:
-        result = data.sql_query("""select * from guests where UserEmail = %s""", email)
+        result = data.sql_query("""SELECT * FROM Guests WHERE UserEmail = %s""", email)
         if not result:
             return False
         return True

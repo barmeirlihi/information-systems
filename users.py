@@ -100,7 +100,7 @@ def get_password(email):
 def is_user(email):
     """Check if email exists in Users table (both guests and registered users)"""
     try:
-        result = data.sql_query("""select * from users where email = %s""", email)
+        result = data.sql_query("""SELECT * FROM Users WHERE email = %s""", email)
         if not result:
             return False
         return True
