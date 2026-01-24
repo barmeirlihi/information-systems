@@ -240,8 +240,10 @@ def book_flights():
             'date': date
         }
         
-        # Check if any filters were applied
-        has_filters = bool(origin or destination or date)
+        # Check if any filters were applied (non-empty values)
+        has_filters = bool((origin and origin.strip()) or 
+                           (destination and destination.strip()) or 
+                           (date and date.strip()))
         
         # Search with filters
         flight_objects = Flight.get_active_flights(origin=origin if origin else None, 
@@ -278,8 +280,13 @@ def book_flights():
         )
         flights_with_images.append(flight_tuple)
     
-    # Check if filters are active
-    has_active_filters = bool(search_params.get('origin') or search_params.get('destination') or search_params.get('date'))
+    # Check if filters are active (check for non-empty values)
+    origin_val = search_params.get('origin', '') or ''
+    destination_val = search_params.get('destination', '') or ''
+    date_val = search_params.get('date', '') or ''
+    has_active_filters = bool((origin_val and origin_val.strip()) or 
+                              (destination_val and destination_val.strip()) or 
+                              (date_val and date_val.strip()))
     
     return render_template("book_flights.html", 
                          airports=airports, 
