@@ -15,16 +15,31 @@ import reports
 import validations
 
 #set up session directory
-session_dir = os.path.join(os.getcwd(), "flask_session_data")
-try:
-    if not os.path.exists(session_dir):
-        os.makedirs(session_dir, exist_ok=True)
-except (OSError, PermissionError) as e:
-    session_dir = "/tmp/flask_session_data"
+# Try multiple locations for AWS compatibility
+session_dir = None
+possible_dirs = [
+    os.path.join(os.getcwd(), "flask_session_data"),
+    "/tmp/flask_session_data",
+    os.path.join(os.environ.get("HOME", "/tmp"), "flask_session_data")
+]
+
+for dir_path in possible_dirs:
     try:
-        os.makedirs(session_dir, exist_ok=True)
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path, exist_ok=True, mode=0o755)
+        # Test write access
+        test_file = os.path.join(dir_path, ".test_write")
+        with open(test_file, 'w') as f:
+            f.write("test")
+        os.remove(test_file)
+        session_dir = dir_path
+        break
     except (OSError, PermissionError):
-        pass
+        continue
+
+# Fallback to /tmp if all else fails
+if session_dir is None:
+    session_dir = "/tmp"
 
 application = Flask(__name__)
 # Set secret key for sessions
@@ -628,16 +643,8 @@ def manage_orders_for_guests():
         if order.email != user_email:
             return render_template("manage_orders.html", error="You don't have access to this order")
         
-        # Get display status
-        status, _, final_price = order.get_display_status()
-        
-        # Calculate cancellation fee - use from status if cancelled, otherwise calculate for active orders
-        if status == 'Cancelled by Customer':
-            cancellation_fee = order.total_payment * 0.05
-        elif status == 'Active':
-            cancellation_fee = order.get_cancellation_fee()
-        else:
-            cancellation_fee = 0.0
+        # Get display status (returns status, cancellation_fee, final_price)
+        status, cancellation_fee, final_price = order.get_display_status()
         
         return render_template("order_details.html",
                              order=order,
@@ -694,16 +701,8 @@ def order_details(order_id):
     if order.email != user_email:
         return render_template("error.html", error="You don't have access to this order")
     
-    # Get display status
-    status, _, final_price = order.get_display_status()
-    
-    # Calculate cancellation fee - use from status if cancelled, otherwise calculate for active orders
-    if status == 'Cancelled by Customer':
-        cancellation_fee = order.total_payment * 0.05
-    elif status == 'Active':
-        cancellation_fee = order.get_cancellation_fee()
-    else:
-        cancellation_fee = 0.0
+    # Get display status (returns status, cancellation_fee, final_price)
+    status, cancellation_fee, final_price = order.get_display_status()
     
     is_guest = (user_type == 'guest')
     
@@ -888,6 +887,9 @@ def plane_selection():
 
     # Get available planes from session (already fetched in step 1)
     available_planes = flight_data.get('available_planes', [])
+    # Ensure available_planes is always a list
+    if not isinstance(available_planes, list):
+        available_planes = []
     
     plane_id = request.form.get("plane_id")
     
