@@ -12,6 +12,7 @@ from flights import *
 from guest import *
 from order import Order
 import reports
+import validations
 
 session_dir = os.path.join(os.getcwd(), "flask_session_data")
 try:
@@ -66,8 +67,14 @@ def login():
     
     if request.method == "POST":
         try:
-            email = request.form.get("email")
-            password = request.form.get("password")
+            email = request.form.get("email", "").strip()
+            password = request.form.get("password", "").strip()
+            
+            # Validate email
+            is_valid, error = validations.validate_email(email)
+            if not is_valid:
+                return render_template("login.html", message=error)
+            
             stored_password = users.get_password(email)
             if stored_password and stored_password == password:
                 session['user_type'] = 'user'
@@ -85,15 +92,51 @@ def login():
 @application.route("/sign_up", methods=["POST", "GET"])
 def sign_up():
     if request.method == "POST":
-        email = request.form.get("email")
-        password = request.form.get("password")
-        first_name = request.form.get("first_name")
-        last_name = request.form.get("last_name")
-        birth_date = request.form.get("birth_date")
-        passport_number = request.form.get("passport_number")
+        email = request.form.get("email", "").strip()
+        password = request.form.get("password", "").strip()
+        first_name = request.form.get("first_name", "").strip()
+        last_name = request.form.get("last_name", "").strip()
+        birth_date = request.form.get("birth_date", "").strip()
+        passport_number = request.form.get("passport_number", "").strip()
 
         # קליטת מחרוזת הטלפונים (למשל: "050-123, 052-456")
-        phones_string = request.form.get("phone_numbers")
+        phones_string = request.form.get("phone_numbers", "").strip()
+
+        # Validate email
+        is_valid, error = validations.validate_email(email)
+        if not is_valid:
+            return render_template("sign_up.html", 
+                                 error=error,
+                                 first_name=first_name,
+                                 last_name=last_name,
+                                 email=email,
+                                 birth_date=birth_date,
+                                 passport_number=passport_number,
+                                 phone_numbers=phones_string)
+        
+        # Validate passport number
+        is_valid, error = validations.validate_passport_number(passport_number)
+        if not is_valid:
+            return render_template("sign_up.html", 
+                                 error=error,
+                                 first_name=first_name,
+                                 last_name=last_name,
+                                 email=email,
+                                 birth_date=birth_date,
+                                 passport_number=passport_number,
+                                 phone_numbers=phones_string)
+        
+        # Validate phone numbers
+        is_valid, error = validations.validate_phone_number(phones_string)
+        if not is_valid:
+            return render_template("sign_up.html", 
+                                 error=error,
+                                 first_name=first_name,
+                                 last_name=last_name,
+                                 email=email,
+                                 birth_date=birth_date,
+                                 passport_number=passport_number,
+                                 phone_numbers=phones_string)
 
         # Check if email is already registered as guest
         if guest.is_guest(email):
@@ -147,13 +190,18 @@ def guest_page():
     
     if request.method == "POST":
         try:
-            email = request.form.get("email")
-            first_name = request.form.get("first_name")
-            last_name = request.form.get("last_name")
-            phone = request.form.get("phone")
+            email = request.form.get("email", "").strip()
+            first_name = request.form.get("first_name", "").strip()
+            last_name = request.form.get("last_name", "").strip()
+            phone = request.form.get("phone", "").strip()
 
             # שלב א': אם יש רק email -> נבדוק מה הסטטוס שלו
             if email and not (first_name and last_name and phone):
+                # Validate email
+                is_valid, error = validations.validate_email(email)
+                if not is_valid:
+                    return render_template("guest.html", message=error, email_value=email)
+                
                 print(f"Checking guest status for email: {email}")
                 # 1. בדיקה האם הוא כבר קיים כאורח
                 is_existing_guest = guest.is_guest(email)
@@ -175,6 +223,18 @@ def guest_page():
 
             # שלב ב': אם שלחו לנו את כל הפרטים -> ניצור את האורח
             elif email and first_name and last_name and phone:
+                # Validate email
+                is_valid, error = validations.validate_email(email)
+                if not is_valid:
+                    return render_template("guest.html", message=error, show_details=True, email_value=email,
+                                         first_name=first_name, last_name=last_name, phone=phone)
+                
+                # Validate phone number
+                is_valid, error = validations.validate_phone_number(phone)
+                if not is_valid:
+                    return render_template("guest.html", message=error, show_details=True, email_value=email,
+                                         first_name=first_name, last_name=last_name, phone=phone)
+                
                 # אם הגענו לכאן, זה אומר שהוא לא אורח ולא משתמש (כי זה נבדק בשלב א')
                 # אז ניצור אורח חדש
                 new_guest = Guest(email, first_name, last_name, [phone])
@@ -199,8 +259,14 @@ def manager():
         return redirect("/manager/dashboard")
     
     if request.method == "POST":
-        manager_id = request.form.get("manager_id")
-        password = request.form.get("password")
+        manager_id = request.form.get("manager_id", "").strip()
+        password = request.form.get("password", "").strip()
+        
+        # Validate manager ID
+        is_valid, error = validations.validate_id_number(manager_id)
+        if not is_valid:
+            return render_template("manager.html", message=error)
+        
         result = data.sql_query("""SELECT password FROM Managers WHERE manager_id = %s""", manager_id)
         if result and len(result) > 0 and result[0][0] == password:
             session['user_type'] = 'manager'
@@ -541,10 +607,10 @@ def select_route():
     if not require_user_type(['manager']):
         return redirect("/manager?error=Access denied. Please log in as manager")
     
-    origin_airport = request.form.get("origin_airport")
-    destination_airport = request.form.get("destination_airport")
-    departure_date = request.form.get("departure_date")
-    departure_time = request.form.get("departure_time")
+    origin_airport = request.form.get("origin_airport", "").strip()
+    destination_airport = request.form.get("destination_airport", "").strip()
+    departure_date = request.form.get("departure_date", "").strip()
+    departure_time = request.form.get("departure_time", "").strip()
     
     if not all([origin_airport, destination_airport, departure_date, departure_time]):
         airports = get_all_airports()
@@ -959,14 +1025,16 @@ def manage_orders():
         return redirect("/?error=Please log in or continue as guest to manage orders")
     
     if request.method == "POST":
-        order_id = request.form.get("order_id")
+        order_id = request.form.get("order_id", "").strip()
         if not order_id:
             return render_template("manage_orders.html", error="Please enter order number")
         
+        # Try to convert to int if possible, otherwise keep as string
         try:
             order_id = int(order_id)
         except ValueError:
-            return render_template("manage_orders.html", error="Invalid order number")
+            # Order ID might contain letters, keep as string
+            pass
         
         order = Order.get_by_id(order_id)
         if not order:
@@ -1284,17 +1352,12 @@ def add_plane():
                                      size=size,
                                      purchase_date=purchase_date)
             
-            # Validate plane_id is numeric
+            # Try to convert plane_id to int if possible, otherwise keep as string
             try:
                 plane_id_int = int(plane_id)
             except ValueError:
-                return render_template("add_plane.html",
-                                     step=1,
-                                     error="Plane ID must be a number",
-                                     plane_id=plane_id,
-                                     manufacturer=manufacturer,
-                                     size=size,
-                                     purchase_date=purchase_date)
+                # Plane ID might not be numeric, keep as string
+                plane_id_int = plane_id
             
             # Check if plane_id already exists
             existing_plane = data.sql_query("SELECT plane_id FROM Planes WHERE plane_id = %s", plane_id_int)
@@ -1558,16 +1621,16 @@ def add_employee():
         return redirect("/manager?error=Access denied. Please log in as manager")
     
     if request.method == "POST":
-        employee_role = request.form.get("employee_role")
-        employee_id = request.form.get("employee_id")
-        first_name_he = request.form.get("first_name_he")
-        last_name_he = request.form.get("last_name_he")
-        phone_number = request.form.get("phone_number")
-        city = request.form.get("city")
-        street = request.form.get("street")
-        house_number = request.form.get("house_number")
-        start_work_date = request.form.get("start_work_date")
-        long_flight_certified = request.form.get("long_flight_certified")
+        employee_role = request.form.get("employee_role", "").strip()
+        employee_id = request.form.get("employee_id", "").strip()
+        first_name_he = request.form.get("first_name_he", "").strip()
+        last_name_he = request.form.get("last_name_he", "").strip()
+        phone_number = request.form.get("phone_number", "").strip()
+        city = request.form.get("city", "").strip()
+        street = request.form.get("street", "").strip()
+        house_number = request.form.get("house_number", "").strip()
+        start_work_date = request.form.get("start_work_date", "").strip()
+        long_flight_certified = request.form.get("long_flight_certified", "").strip()
         
         # Validate all fields are provided
         if not all([employee_role, employee_id, first_name_he, last_name_he, phone_number, 
@@ -1583,6 +1646,38 @@ def add_employee():
                                  street=street or "",
                                  house_number=house_number or "",
                                  start_work_date=start_work_date or "",
+                                 long_flight_certified=long_flight_certified or "0")
+        
+        # Validate employee ID
+        is_valid, error = validations.validate_id_number(employee_id)
+        if not is_valid:
+            return render_template("add_employee.html",
+                                 error=error,
+                                 employee_role=employee_role,
+                                 employee_id=employee_id,
+                                 first_name_he=first_name_he,
+                                 last_name_he=last_name_he,
+                                 phone_number=phone_number,
+                                 city=city,
+                                 street=street,
+                                 house_number=house_number,
+                                 start_work_date=start_work_date,
+                                 long_flight_certified=long_flight_certified or "0")
+        
+        # Validate phone number
+        is_valid, error = validations.validate_phone_number(phone_number)
+        if not is_valid:
+            return render_template("add_employee.html",
+                                 error=error,
+                                 employee_role=employee_role,
+                                 employee_id=employee_id,
+                                 first_name_he=first_name_he,
+                                 last_name_he=last_name_he,
+                                 phone_number=phone_number,
+                                 city=city,
+                                 street=street,
+                                 house_number=house_number,
+                                 start_work_date=start_work_date,
                                  long_flight_certified=long_flight_certified or "0")
         
         # Validate employee role

@@ -5,6 +5,7 @@ from mysql.connector import cursor
 
 import data
 from data import *
+import validations
 
 class Guest:
     def __init__(self, email, first_name, last_name, phone_numbers):
@@ -35,8 +36,15 @@ class Guest:
         birth_date = form_data.get("birth_date", "").strip()
         phone_numbers = form_data.get("phone_numbers", "").strip()
         
-        if not all([first_name, last_name, passport_number, birth_date, phone_numbers]):
-            return False, "Please fill in all required fields", None
+        # Validate passport number
+        is_valid, error = validations.validate_passport_number(passport_number)
+        if not is_valid:
+            return False, error, None
+        
+        # Validate phone numbers
+        is_valid, error = validations.validate_phone_number(phone_numbers)
+        if not is_valid:
+            return False, error, None
         
         validated_data = {
             'first_name': first_name,
