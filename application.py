@@ -42,7 +42,6 @@ application.config.update(
 )
 Session(application)
 
-flytau_db = {"Donald@mail.tau.ac.il": "123!@ABC"}
 
 
 def require_user_type(allowed_types):
