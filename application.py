@@ -227,6 +227,7 @@ def book_flights():
     airports = get_all_airports()
     flight_objects = []
     search_params = {}
+    show_alternative_flights = False
     
     if request.method == "POST":
         origin = request.form.get("origin")
@@ -242,6 +243,11 @@ def book_flights():
         flight_objects = Flight.get_active_flights(origin=origin if origin else None, 
                                                     destination=destination if destination else None,
                                                     flight_date=date if date else None)
+        
+        # If no flights found with filters, show alternative flights
+        if not flight_objects and (origin or destination or date):
+            show_alternative_flights = True
+            flight_objects = Flight.get_active_flights()
     else:
         # אם זה GET ללא פרמטרים, נציג את כל הטיסות הפעילות
         flight_objects = Flight.get_active_flights()
@@ -268,10 +274,15 @@ def book_flights():
         )
         flights_with_images.append(flight_tuple)
     
+    # Check if filters are active
+    has_active_filters = bool(search_params.get('origin') or search_params.get('destination') or search_params.get('date'))
+    
     return render_template("book_flights.html", 
                          airports=airports, 
                          flights=flights_with_images,
-                         search_params=search_params)
+                         search_params=search_params,
+                         has_active_filters=has_active_filters,
+                         show_alternative_flights=show_alternative_flights)
 
 @application.route("/select_seats/<int:flight_id>", methods=["GET", "POST"])
 def select_seats(flight_id):
