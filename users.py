@@ -98,6 +98,7 @@ def get_password(email):
 
 
 def is_user(email):
+    """Check if email exists in Users table (both guests and registered users)"""
     try:
         result = data.sql_query("""select * from users where email = %s""", email)
         if not result:
@@ -105,6 +106,17 @@ def is_user(email):
         return True
     except Exception as e:
         print(f"Error checking if user exists: {e}")
+        return False
+
+def is_registered_user(email):
+    """Check if email is a registered user (in RegisteredUsers table)"""
+    try:
+        result = data.sql_query("""SELECT * FROM RegisteredUsers WHERE email = %s""", email)
+        if not result:
+            return False
+        return True
+    except Exception as e:
+        print(f"Error checking if registered user exists: {e}")
         return False
 
 def add_user(user):

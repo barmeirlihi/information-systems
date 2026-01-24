@@ -138,10 +138,10 @@ def sign_up():
                                  passport_number=passport_number,
                                  phone_numbers=phones_string)
 
-        # Check if email is already registered as guest
-        if guest.is_guest(email):
+        # Check if email is already registered as a registered user
+        if users.is_registered_user(email):
             return render_template("sign_up.html", 
-                                 error="You are already registered as a guest, please use another email",
+                                 error="You are already registered to the system, please login",
                                  first_name=first_name,
                                  last_name=last_name,
                                  email=email,
@@ -149,10 +149,10 @@ def sign_up():
                                  passport_number=passport_number,
                                  phone_numbers=phones_string)
         
-        # Check if email is already registered as user
-        if users.is_user(email):
+        # Check if email is already registered as guest
+        if guest.is_guest(email):
             return render_template("sign_up.html", 
-                                 error="This email is already registered in the system, please log in instead",
+                                 error="You are registered as a guest, either register with another email or login as a guest",
                                  first_name=first_name,
                                  last_name=last_name,
                                  email=email,
@@ -212,8 +212,8 @@ def guest_page():
                     return redirect("/book_flights")
                 
                 # 2. בדיקה האם הוא קיים כמשתמש רשום
-                is_existing_user = users.is_user(email)
-                print(f"Is existing user: {is_existing_user}")
+                is_existing_user = users.is_registered_user(email)
+                print(f"Is existing registered user: {is_existing_user}")
                 if is_existing_user:
                     return render_template("login.html", message="You are a registered user. Please log in.")
                 
@@ -235,8 +235,21 @@ def guest_page():
                     return render_template("guest.html", message=error, show_details=True, email_value=email,
                                          first_name=first_name, last_name=last_name, phone=phone)
                 
-                # אם הגענו לכאן, זה אומר שהוא לא אורח ולא משתמש (כי זה נבדק בשלב א')
-                # אז ניצור אורח חדש
+                # Check if email is already registered as guest
+                if guest.is_guest(email):
+                    # If already a guest, just log them in and redirect
+                    session['user_type'] = 'guest'
+                    session['user_email'] = email
+                    return redirect("/book_flights")
+                
+                # Check if email is already registered as a registered user
+                if users.is_registered_user(email):
+                    return render_template("guest.html", 
+                                         message="You are a registered user. Please log in.",
+                                         show_details=True, email_value=email,
+                                         first_name=first_name, last_name=last_name, phone=phone)
+                
+                # Create new guest
                 new_guest = Guest(email, first_name, last_name, [phone])
                 guest.add_guest(new_guest)
                 session['user_type'] = 'guest'
