@@ -874,18 +874,17 @@ def plane_selection():
         return redirect("/flights_management")
     
     # POST request - process form data
-  
     flight_data = session.get('flight_creation')
     if not flight_data:
         return redirect("/flights_management")
     # Get route information from session 
-    origin_airport = flight_data['origin_airport']
-    destination_airport = flight_data['destination_airport']
-    departure_date = flight_data['departure_date']
-    departure_time = flight_data['departure_time']
-    route_info = flight_data['route_info']
-    origin_country = flight_data['origin_country']
-    is_long = flight_data['is_long']
+    origin_airport = flight_data.get('origin_airport')
+    destination_airport = flight_data.get('destination_airport')
+    departure_date = flight_data.get('departure_date')
+    departure_time = flight_data.get('departure_time')
+    route_info = flight_data.get('route_info')
+    origin_country = flight_data.get('origin_country')
+    is_long = flight_data.get('is_long')
 
     # Get available planes from session (already fetched in step 1)
     available_planes = flight_data.get('available_planes', [])
@@ -962,13 +961,13 @@ def add_flight_with_crew():
     if not flight_data:
         return redirect("/flights_management")
     
-    origin_airport = flight_data['origin_airport']
-    destination_airport = flight_data['destination_airport']
-    departure_date = flight_data['departure_date']
-    departure_time = flight_data['departure_time']
-    origin_country = flight_data['origin_country']
-    is_long = flight_data['is_long']
-    route_info = flight_data['route_info']
+    origin_airport = flight_data.get('origin_airport')
+    destination_airport = flight_data.get('destination_airport')
+    departure_date = flight_data.get('departure_date')
+    departure_time = flight_data.get('departure_time')
+    origin_country = flight_data.get('origin_country')
+    is_long = flight_data.get('is_long')
+    route_info = flight_data.get('route_info')
     
     # Get plane_id and plane_size from session 
     plane_id = flight_data.get('selected_plane_id')
@@ -1244,10 +1243,13 @@ def add_plane():
             if not plane_data:
                 return redirect("/manager/add_plane")
             
-            plane_id_int = plane_data['plane_id']
-            size = plane_data['size']
-            manufacturer = plane_data['manufacturer']
-            purchase_date = plane_data['purchase_date']
+            plane_id_int = plane_data.get('plane_id')
+            size = plane_data.get('size')
+            manufacturer = plane_data.get('manufacturer')
+            purchase_date = plane_data.get('purchase_date')
+            
+            if not all([plane_id_int, size, manufacturer, purchase_date]):
+                return redirect("/manager/add_plane")
             
             # Get seat configuration based on plane size
             if size == 'Small':
