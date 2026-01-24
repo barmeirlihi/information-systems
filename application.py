@@ -887,6 +887,9 @@ def plane_selection():
     origin_country = flight_data['origin_country']
     is_long = flight_data['is_long']
 
+    # Get available planes from session (already fetched in step 1)
+    available_planes = flight_data.get('available_planes', [])
+    
     plane_id = request.form.get("plane_id")
     
     # change the selected plane to the session if it's already selected
@@ -910,9 +913,6 @@ def plane_selection():
     selected_attendant_ids = request.form.getlist("attendant_ids")
     price_economy = request.form.get("price_economy")
     price_business = request.form.get("price_business")
-    
-    # Get available planes from session (already fetched in step 1)
-    available_planes = flight_data.get('available_planes', [])
     
     # Get crew requirements (to display requirements)
     large_crew = get_crew_requirements('Large', is_long)
