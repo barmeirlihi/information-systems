@@ -6,6 +6,7 @@ misc.xml
 vcs.xml
 flytau_database.sql
 flytau_database_utf8.sql
+flytau_database_dump.sql
 populate_database.sql
 populate_database.py
 requirements.txt.old
