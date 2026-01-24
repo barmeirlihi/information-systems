@@ -15,16 +15,31 @@ import reports
 import validations
 
 #set up session directory
-session_dir = os.path.join(os.getcwd(), "flask_session_data")
-try:
-    if not os.path.exists(session_dir):
-        os.makedirs(session_dir, exist_ok=True)
-except (OSError, PermissionError) as e:
-    session_dir = "/tmp/flask_session_data"
+# Try multiple locations for AWS compatibility
+session_dir = None
+possible_dirs = [
+    os.path.join(os.getcwd(), "flask_session_data"),
+    "/tmp/flask_session_data",
+    os.path.join(os.environ.get("HOME", "/tmp"), "flask_session_data")
+]
+
+for dir_path in possible_dirs:
     try:
-        os.makedirs(session_dir, exist_ok=True)
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path, exist_ok=True, mode=0o755)
+        # Test write access
+        test_file = os.path.join(dir_path, ".test_write")
+        with open(test_file, 'w') as f:
+            f.write("test")
+        os.remove(test_file)
+        session_dir = dir_path
+        break
     except (OSError, PermissionError):
-        pass
+        continue
+
+# Fallback to /tmp if all else fails
+if session_dir is None:
+    session_dir = "/tmp"
 
 application = Flask(__name__)
 # Set secret key for sessions
@@ -872,6 +887,9 @@ def plane_selection():
 
     # Get available planes from session (already fetched in step 1)
     available_planes = flight_data.get('available_planes', [])
+    # Ensure available_planes is always a list
+    if not isinstance(available_planes, list):
+        available_planes = []
     
     plane_id = request.form.get("plane_id")
     
