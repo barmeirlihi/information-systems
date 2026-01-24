@@ -199,7 +199,7 @@
 
         {% elif step == 2 %}
         <!-- Step 2: Select Plane, Crew, Prices -->
-        <form method="POST" action="{% if selected_plane_id %}/flights_management/add_flight{% else %}/flights_management/update_plane_selection{% endif %}">
+        <form method="POST" action="{% if selected_plane_id %}/flights_management/add_flight{% else %}/flights_management/plane_selection{% endif %}">
             <input type="hidden" name="origin_airport" value="{{ origin_airport }}">
             <input type="hidden" name="destination_airport" value="{{ destination_airport }}">
             <input type="hidden" name="departure_date" value="{{ departure_date }}">
@@ -227,6 +227,20 @@
 
             <div class="form-group">
                 <label for="plane_id">Plane *</label>
+                {% if plane_locked %}
+                <input type="hidden" name="plane_id" value="{{ selected_plane_id }}">
+                <select name="plane_id" id="plane_id" disabled style="background-color: #f1f5f9; cursor: not-allowed;">
+                    <option value="{{ selected_plane_id }}" selected>
+                        {% set selected_plane = available_planes|selectattr("0", "equalto", selected_plane_id|int)|first %}
+                        {% if selected_plane %}
+                        Plane {{ selected_plane[0] }} - {{ selected_plane[1] }} ({{ 'Large' if selected_plane[2] == 'Large' else 'Small' }})
+                        {% else %}
+                        Plane {{ selected_plane_id }}
+                        {% endif %}
+                    </option>
+                </select>
+                <small style="color: #64748b; font-size: 0.875rem; display: block; margin-top: 0.25rem;">Plane selection is locked. You cannot change it after initial selection.</small>
+                {% else %}
                 <select name="plane_id" id="plane_id" required>
                     <option value="">Select plane</option>
                     {% for plane in available_planes %}
@@ -235,6 +249,7 @@
                     </option>
                     {% endfor %}
                 </select>
+                {% endif %}
             </div>
 
             {% if selected_plane_id %}
@@ -349,7 +364,7 @@
                 <strong>Please select a plane to continue</strong><br>
                 After selecting a plane, crew requirements and selection will be displayed.
             </div>
-            <button type="submit" formaction="/flights_management/update_plane_selection" formmethod="POST">Update Plane Selection</button>
+            <button type="submit" formaction="/flights_management/plane_selection" formmethod="POST">Update Plane Selection</button>
             {% endif %}
         </form>
         {% endif %}

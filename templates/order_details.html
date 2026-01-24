@@ -190,7 +190,7 @@
             <div class="cancellation-fee">
                 <strong>Note:</strong> Cancelling the order will incur a cancellation fee of 5% of total payment (${{ "%.2f"|format(cancellation_fee) }}). Order can only be cancelled at least 36 hours before departure.
             </div>
-            <a href="/confirm_cancel/{{ order.order_id }}" class="cancel-btn" style="text-decoration: none; display: inline-block;">Cancel Order</a>
+            <a href="/cancel_order/{{ order.order_id }}" class="cancel-btn" style="text-decoration: none; display: inline-block;">Cancel Order</a>
             {% endif %}
         </div>
 
