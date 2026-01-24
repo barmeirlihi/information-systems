@@ -978,7 +978,15 @@ def manage_orders():
             return render_template("manage_orders.html", error="You don't have access to this order")
         
         # Get display status
-        status, cancellation_fee, final_price = order.get_display_status()
+        status, _, final_price = order.get_display_status()
+        
+        # Calculate cancellation fee - use from status if cancelled, otherwise calculate for active orders
+        if status == 'Cancelled by Customer':
+            cancellation_fee = order.total_payment * 0.05
+        elif status == 'Active':
+            cancellation_fee = order.get_cancellation_fee()
+        else:
+            cancellation_fee = 0.0
         
         return render_template("order_details.html",
                              order=order,
