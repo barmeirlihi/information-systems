@@ -199,7 +199,7 @@
 
         {% elif step == 2 %}
         <!-- Step 2: Select Plane, Crew, Prices -->
-        <form method="POST" action="{% if selected_plane_id %}/flights_management/add_flight{% else %}/flights_management/update_plane_selection{% endif %}">
+        <form method="POST" action="{% if selected_plane_id %}/flights_management/add_flight{% else %}/flights_management/plane_selection{% endif %}">
             <input type="hidden" name="origin_airport" value="{{ origin_airport }}">
             <input type="hidden" name="destination_airport" value="{{ destination_airport }}">
             <input type="hidden" name="departure_date" value="{{ departure_date }}">
@@ -364,7 +364,7 @@
                 <strong>Please select a plane to continue</strong><br>
                 After selecting a plane, crew requirements and selection will be displayed.
             </div>
-            <button type="submit" formaction="/flights_management/update_plane_selection" formmethod="POST">Update Plane Selection</button>
+            <button type="submit" formaction="/flights_management/plane_selection" formmethod="POST">Update Plane Selection</button>
             {% endif %}
         </form>
         {% endif %}

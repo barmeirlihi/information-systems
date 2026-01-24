@@ -148,7 +148,7 @@
 
         {% if step == 1 %}
         <!-- Step 1: Basic plane details -->
-        <form method="POST" action="/manager/add_plane?step=1">
+        <form method="POST" action="/manager/add_plane">
             <div class="form-group">
                 <label for="plane_id">Plane ID *</label>
                 <input type="number" id="plane_id" name="plane_id" value="{{ plane_id }}" required>
@@ -248,7 +248,7 @@
 
         <div style="text-align: center; margin-top: 2rem;">
             {% if step == 2 %}
-            <a href="/manager/add_plane?step=1" class="back-btn">Back to Plane Details</a>
+            <a href="/manager/add_plane" class="back-btn">Back to Plane Details</a>
             {% endif %}
             <a href="/manager/dashboard" class="back-btn" style="margin-left: 0.5rem;">Back to Dashboard</a>
         </div>
