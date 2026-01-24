@@ -1,6 +1,7 @@
 from flask import Flask, render_template, redirect, request, session
 from flask_session import Session
 from datetime import timedelta, date
+import os
 
 import data
 import guest
@@ -11,21 +12,37 @@ from flights import *
 from guest import *
 from order import Order
 import reports
+import validations
 
+session_dir = os.path.join(os.getcwd(), "flask_session_data")
+try:
+    if not os.path.exists(session_dir):
+        os.makedirs(session_dir, exist_ok=True)
+except (OSError, PermissionError) as e:
+    # If we can't create the directory, use a fallback location
+    session_dir = "/tmp/flask_session_data"
+    try:
+        os.makedirs(session_dir, exist_ok=True)
+    except (OSError, PermissionError):
+        pass  # Will use default Flask session directory
 
-app = Flask(__name__)
-app.config.update(
+application = Flask(__name__)
+# Set secret key for sessions
+application.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+
+application.config.update(
     SESSION_TYPE="filesystem",
-    SESSION_FILE_DIR="./flask_session_data",
+    SESSION_FILE_DIR=session_dir,
     SESSION_PERMANENT=True,
     PERMANENT_SESSION_LIFETIME=timedelta(minutes=10),
     SESSION_REFRESH_EACH_REQUEST=False,
     SESSION_FILE_THRESHOLD=20,
-    SESSION_COOKIE_SECURE=True
+    SESSION_COOKIE_SECURE=False,  # Set to True only if using HTTPS
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax'
 )
-Session(app)
+Session(application)
 
-flytau_db = {"Donald@mail.tau.ac.il": "123!@ABC"}
 
 
 def require_user_type(allowed_types):
@@ -35,13 +52,13 @@ def require_user_type(allowed_types):
         return False
     return True
 
-@app.route("/")
+@application.route("/")
 def homepage():
     error = request.args.get('error')
     return render_template('homepage.html', error=error)
 
 
-@app.route("/login", methods=["POST", "GET"])
+@application.route("/login", methods=["POST", "GET"])
 def login():
     # If user is already logged in as user or guest, redirect to book_flights
     user_type = session.get('user_type')
@@ -49,36 +66,47 @@ def login():
         return redirect("/book_flights")
     
     if request.method == "POST":
-        email = request.form.get("email")
-        password = request.form.get("password")
-        stored_password = users.get_password(email)
-        if stored_password and stored_password == password:
-            session['user_type'] = 'user'
-            session['user_email'] = email
-            return redirect("/book_flights")
-        else:
-            return render_template("login.html", message='Incorrect Login Details.')
+        try:
+            email = request.form.get("email", "").strip()
+            password = request.form.get("password", "").strip()
+            
+            # Validate email
+            is_valid, error = validations.validate_email(email)
+            if not is_valid:
+                return render_template("login.html", message=error)
+            
+            stored_password = users.get_password(email)
+            if stored_password and stored_password == password:
+                session['user_type'] = 'user'
+                session['user_email'] = email
+                return redirect("/book_flights")
+            else:
+                return render_template("login.html", message='Incorrect Login Details.')
+        except Exception as e:
+            print(f"Login error: {e}")
+            return render_template("login.html", message='An error occurred. Please try again.')
     error = request.args.get('error')
     message = error if error else None
     return render_template("login.html", message=message)
 
-@app.route("/sign_up", methods=["POST", "GET"])
+@application.route("/sign_up", methods=["POST", "GET"])
 def sign_up():
     if request.method == "POST":
-        email = request.form.get("email")
-        password = request.form.get("password")
-        first_name = request.form.get("first_name")
-        last_name = request.form.get("last_name")
-        birth_date = request.form.get("birth_date")
-        passport_number = request.form.get("passport_number")
+        email = request.form.get("email", "").strip()
+        password = request.form.get("password", "").strip()
+        first_name = request.form.get("first_name", "").strip()
+        last_name = request.form.get("last_name", "").strip()
+        birth_date = request.form.get("birth_date", "").strip()
+        passport_number = request.form.get("passport_number", "").strip()
 
         # קליטת מחרוזת הטלפונים (למשל: "050-123, 052-456")
-        phones_string = request.form.get("phone_numbers")
+        phones_string = request.form.get("phone_numbers", "").strip()
 
-        # Check if email is already registered as guest
-        if guest.is_guest(email):
+        # Validate email
+        is_valid, error = validations.validate_email(email)
+        if not is_valid:
             return render_template("sign_up.html", 
-                                 error="You are already registered as a guest, please use another email",
+                                 error=error,
                                  first_name=first_name,
                                  last_name=last_name,
                                  email=email,
@@ -86,10 +114,45 @@ def sign_up():
                                  passport_number=passport_number,
                                  phone_numbers=phones_string)
         
-        # Check if email is already registered as user
-        if users.is_user(email):
+        # Validate passport number
+        is_valid, error = validations.validate_passport_number(passport_number)
+        if not is_valid:
             return render_template("sign_up.html", 
-                                 error="This email is already registered in the system, please log in instead",
+                                 error=error,
+                                 first_name=first_name,
+                                 last_name=last_name,
+                                 email=email,
+                                 birth_date=birth_date,
+                                 passport_number=passport_number,
+                                 phone_numbers=phones_string)
+        
+        # Validate phone numbers
+        is_valid, error = validations.validate_phone_number(phones_string)
+        if not is_valid:
+            return render_template("sign_up.html", 
+                                 error=error,
+                                 first_name=first_name,
+                                 last_name=last_name,
+                                 email=email,
+                                 birth_date=birth_date,
+                                 passport_number=passport_number,
+                                 phone_numbers=phones_string)
+
+        # Check if email is already registered as a registered user
+        if users.is_registered_user(email):
+            return render_template("sign_up.html", 
+                                 error="You are already registered to the system, please login",
+                                 first_name=first_name,
+                                 last_name=last_name,
+                                 email=email,
+                                 birth_date=birth_date,
+                                 passport_number=passport_number,
+                                 phone_numbers=phones_string)
+        
+        # Check if email is already registered as guest
+        if guest.is_guest(email):
+            return render_template("sign_up.html", 
+                                 error="You are registered as a guest, either register with another email or login as a guest",
                                  first_name=first_name,
                                  last_name=last_name,
                                  email=email,
@@ -118,7 +181,7 @@ def sign_up():
     return render_template("sign_up.html")
 
 
-@app.route("/guest", methods=["POST", "GET"])
+@application.route("/guest", methods=["POST", "GET"])
 def guest_page():
     # If user is already logged in as guest or user, redirect to book_flights
     user_type = session.get('user_type')
@@ -126,40 +189,88 @@ def guest_page():
         return redirect("/book_flights")
     
     if request.method == "POST":
-        email = request.form.get("email")
-        first_name = request.form.get("first_name")
-        last_name = request.form.get("last_name")
-        phone = request.form.get("phone")
+        try:
+            email = request.form.get("email", "").strip()
+            first_name = request.form.get("first_name", "").strip()
+            last_name = request.form.get("last_name", "").strip()
+            phone = request.form.get("phone", "").strip()
 
-        # שלב א': אם יש רק email -> נבדוק מה הסטטוס שלו
-        if email and not (first_name and last_name and phone):
-            # 1. בדיקה האם הוא כבר קיים כאורח
-            if guest.is_guest(email):
+            # שלב א': אם יש רק email -> נבדוק מה הסטטוס שלו
+            if email and not (first_name and last_name and phone):
+                # Validate email
+                is_valid, error = validations.validate_email(email)
+                if not is_valid:
+                    return render_template("guest.html", message=error, email_value=email)
+                
+                print(f"Checking guest status for email: {email}")
+                # 1. בדיקה האם הוא כבר קיים כאורח
+                is_existing_guest = guest.is_guest(email)
+                print(f"Is existing guest: {is_existing_guest}")
+                if is_existing_guest:
+                    session['user_type'] = 'guest'
+                    session['user_email'] = email
+                    return redirect("/book_flights")
+                
+                # 2. בדיקה האם הוא קיים כמשתמש רשום
+                is_existing_user = users.is_registered_user(email)
+                print(f"Is existing registered user: {is_existing_user}")
+                if is_existing_user:
+                    return render_template("login.html", message="You are a registered user. Please log in.")
+                
+                # 3. אם הוא לא אורח ולא רשום -> נטען את הדף עם השדות הפתוחים
+                print(f"New guest, showing details form")
+                return render_template("guest.html", show_details=True, email_value=email)
+
+            # שלב ב': אם שלחו לנו את כל הפרטים -> ניצור את האורח
+            elif email and first_name and last_name and phone:
+                # Validate email
+                is_valid, error = validations.validate_email(email)
+                if not is_valid:
+                    return render_template("guest.html", message=error, show_details=True, email_value=email,
+                                         first_name=first_name, last_name=last_name, phone=phone)
+                
+                # Validate phone number
+                is_valid, error = validations.validate_phone_number(phone)
+                if not is_valid:
+                    return render_template("guest.html", message=error, show_details=True, email_value=email,
+                                         first_name=first_name, last_name=last_name, phone=phone)
+                
+                # Check if email is already registered as guest
+                if guest.is_guest(email):
+                    # If already a guest, just log them in and redirect
+                    session['user_type'] = 'guest'
+                    session['user_email'] = email
+                    return redirect("/book_flights")
+                
+                # Check if email is already registered as a registered user
+                if users.is_registered_user(email):
+                    return render_template("guest.html", 
+                                         message="You are a registered user. Please log in.",
+                                         show_details=True, email_value=email,
+                                         first_name=first_name, last_name=last_name, phone=phone)
+                
+                # Create new guest
+                new_guest = Guest(email, first_name, last_name, [phone])
+                success = guest.add_guest(new_guest)
+                if not success:
+                    # This shouldn't happen if we checked above, but just in case
+                    return render_template("guest.html", 
+                                         message="An error occurred. Please try again.",
+                                         show_details=True, email_value=email,
+                                         first_name=first_name, last_name=last_name, phone=phone)
                 session['user_type'] = 'guest'
                 session['user_email'] = email
                 return redirect("/book_flights")
-            
-            # 2. בדיקה האם הוא קיים כמשתמש רשום
-            elif users.is_user(email):
-                return render_template("login.html", message="You are a registered user. Please log in.")
-            
-            # 3. אם הוא לא אורח ולא רשום -> נטען את הדף עם השדות הפתוחים
-            else:
-                return render_template("guest.html", show_details=True, email_value=email)
-
-        # שלב ב': אם שלחו לנו את כל הפרטים -> ניצור את האורח
-        elif email and first_name and last_name and phone:
-            # אם הגענו לכאן, זה אומר שהוא לא אורח ולא משתמש (כי זה נבדק בשלב א')
-            # אז ניצור אורח חדש
-            new_guest = Guest(email, first_name, last_name, [phone])
-            guest.add_guest(new_guest)
-            session['user_type'] = 'guest'
-            session['user_email'] = email
-            return redirect("/book_flights")
+        except Exception as e:
+            import traceback
+            print(f"Guest page error: {e}")
+            traceback.print_exc()
+            email_val = email if 'email' in locals() and email else ''
+            return render_template("guest.html", message=f"An error occurred: {str(e)}", email_value=email_val)
 
     return render_template("guest.html")
 
-@app.route("/manager", methods=["POST", "GET"])
+@application.route("/manager", methods=["POST", "GET"])
 def manager():
     # If manager is already logged in, redirect to dashboard
     user_type = session.get('user_type')
@@ -167,8 +278,14 @@ def manager():
         return redirect("/manager/dashboard")
     
     if request.method == "POST":
-        manager_id = request.form.get("manager_id")
-        password = request.form.get("password")
+        manager_id = request.form.get("manager_id", "").strip()
+        password = request.form.get("password", "").strip()
+        
+        # Validate manager ID
+        is_valid, error = validations.validate_id_number(manager_id)
+        if not is_valid:
+            return render_template("manager.html", message=error)
+        
         result = data.sql_query("""SELECT password FROM Managers WHERE manager_id = %s""", manager_id)
         if result and len(result) > 0 and result[0][0] == password:
             session['user_type'] = 'manager'
@@ -180,7 +297,7 @@ def manager():
     message = error if error else None
     return render_template("manager.html", message=message)
 
-@app.route("/book_flights", methods=["GET", "POST"])
+@application.route("/book_flights", methods=["GET", "POST"])
 def book_flights():
     user_type = session.get('user_type')
     
@@ -195,6 +312,7 @@ def book_flights():
     airports = get_all_airports()
     flight_objects = []
     search_params = {}
+    show_alternative_flights = False
     
     if request.method == "POST":
         origin = request.form.get("origin")
@@ -207,9 +325,20 @@ def book_flights():
             'date': date
         }
         
+        # Check if any filters were applied (non-empty values)
+        has_filters = bool((origin and origin.strip()) or 
+                           (destination and destination.strip()) or 
+                           (date and date.strip()))
+        
+        # Search with filters
         flight_objects = Flight.get_active_flights(origin=origin if origin else None, 
                                                     destination=destination if destination else None,
                                                     flight_date=date if date else None)
+        
+        # If no flights found with filters, show alternative flights
+        if not flight_objects and has_filters:
+            show_alternative_flights = True
+            flight_objects = Flight.get_active_flights()
     else:
         # אם זה GET ללא פרמטרים, נציג את כל הטיסות הפעילות
         flight_objects = Flight.get_active_flights()
@@ -236,12 +365,22 @@ def book_flights():
         )
         flights_with_images.append(flight_tuple)
     
+    # Check if filters are active (check for non-empty values)
+    origin_val = search_params.get('origin', '') or ''
+    destination_val = search_params.get('destination', '') or ''
+    date_val = search_params.get('date', '') or ''
+    has_active_filters = bool((origin_val and origin_val.strip()) or 
+                              (destination_val and destination_val.strip()) or 
+                              (date_val and date_val.strip()))
+    
     return render_template("book_flights.html", 
                          airports=airports, 
                          flights=flights_with_images,
-                         search_params=search_params)
+                         search_params=search_params,
+                         has_active_filters=has_active_filters,
+                         show_alternative_flights=show_alternative_flights)
 
-@app.route("/select_seats/<int:flight_id>", methods=["GET", "POST"])
+@application.route("/select_seats/<int:flight_id>", methods=["GET", "POST"])
 def select_seats(flight_id):
     user_type = session.get('user_type')
     
@@ -318,7 +457,7 @@ def select_seats(flight_id):
                          price_economy=flight.price_economy,
                          price_business=flight.price_business)
 
-@app.route("/complete_booking/<int:flight_id>", methods=["GET", "POST"])
+@application.route("/complete_booking/<int:flight_id>", methods=["GET", "POST"])
 def complete_booking(flight_id):
     user_type = session.get('user_type')
     
@@ -396,7 +535,7 @@ def complete_booking(flight_id):
                          user_type=user_type,
                          user_data=user_data)
 
-@app.route("/confirm_booking/<int:flight_id>", methods=["GET", "POST"])
+@application.route("/confirm_booking/<int:flight_id>", methods=["GET", "POST"])
 def confirm_booking(flight_id):
     user_type = session.get('user_type')
     
@@ -468,7 +607,7 @@ def confirm_booking(flight_id):
                          user_type=user_type,
                          user_data=confirmation_data['user_data'])
 
-@app.route("/flights_management")
+@application.route("/flights_management")
 def flights_management():
     if not require_user_type(['manager']):
         return render_template("manager.html", message='Access denied. Please log in as a manager.')
@@ -481,16 +620,16 @@ def flights_management():
                          airports=airports, 
                          today=today)
 
-@app.route("/flights_management/select_route", methods=["POST"])
+@application.route("/flights_management/select_route", methods=["POST"])
 def select_route():
     """Step 1: Process route selection and move to step 2"""
     if not require_user_type(['manager']):
         return redirect("/manager?error=Access denied. Please log in as manager")
     
-    origin_airport = request.form.get("origin_airport")
-    destination_airport = request.form.get("destination_airport")
-    departure_date = request.form.get("departure_date")
-    departure_time = request.form.get("departure_time")
+    origin_airport = request.form.get("origin_airport", "").strip()
+    destination_airport = request.form.get("destination_airport", "").strip()
+    departure_date = request.form.get("departure_date", "").strip()
+    departure_time = request.form.get("departure_time", "").strip()
     
     if not all([origin_airport, destination_airport, departure_date, departure_time]):
         airports = get_all_airports()
@@ -557,7 +696,7 @@ def select_route():
                          available_attendants=available_attendants,
                          today=date.today().isoformat())
 
-@app.route("/flights_management/update_plane_selection", methods=["POST"])
+@application.route("/flights_management/update_plane_selection", methods=["POST"])
 def update_plane_selection():
     """Update plane selection and show crew selection"""
     if not require_user_type(['manager']):
@@ -660,7 +799,7 @@ def update_plane_selection():
                          crew_error=crew_error,
                          today=date.today().isoformat())
 
-@app.route("/flights_management/add_flight", methods=["POST"])
+@application.route("/flights_management/add_flight", methods=["POST"])
 def add_flight_route():
     """Add new flight to database"""
     if not require_user_type(['manager']):
@@ -891,7 +1030,7 @@ def add_flight_route():
                              crew_error=crew_error,
                              today=date.today().isoformat())
 
-@app.route("/manage_orders", methods=["GET", "POST"])
+@application.route("/manage_orders", methods=["GET", "POST"])
 def manage_orders():
     """Order management page for guests - requires order number"""
     user_type = session.get('user_type')
@@ -905,14 +1044,16 @@ def manage_orders():
         return redirect("/?error=Please log in or continue as guest to manage orders")
     
     if request.method == "POST":
-        order_id = request.form.get("order_id")
+        order_id = request.form.get("order_id", "").strip()
         if not order_id:
             return render_template("manage_orders.html", error="Please enter order number")
         
+        # Try to convert to int if possible, otherwise keep as string
         try:
             order_id = int(order_id)
         except ValueError:
-            return render_template("manage_orders.html", error="Invalid order number")
+            # Order ID might contain letters, keep as string
+            pass
         
         order = Order.get_by_id(order_id)
         if not order:
@@ -924,7 +1065,15 @@ def manage_orders():
             return render_template("manage_orders.html", error="You don't have access to this order")
         
         # Get display status
-        status, cancellation_fee, final_price = order.get_display_status()
+        status, _, final_price = order.get_display_status()
+        
+        # Calculate cancellation fee - use from status if cancelled, otherwise calculate for active orders
+        if status == 'Cancelled by Customer':
+            cancellation_fee = order.total_payment * 0.05
+        elif status == 'Active':
+            cancellation_fee = order.get_cancellation_fee()
+        else:
+            cancellation_fee = 0.0
         
         return render_template("order_details.html",
                              order=order,
@@ -935,7 +1084,7 @@ def manage_orders():
     
     return render_template("manage_orders.html")
 
-@app.route("/my_orders")
+@application.route("/my_orders")
 def my_orders():
     """Order management page for registered users - shows all orders"""
     if not require_user_type(['user']):
@@ -957,7 +1106,7 @@ def my_orders():
     
     return render_template("my_orders.html", orders=orders_with_status)
 
-@app.route("/order_details/<int:order_id>")
+@application.route("/order_details/<int:order_id>")
 def order_details(order_id):
     """View order details"""
     user_type = session.get('user_type')
@@ -1001,7 +1150,7 @@ def order_details(order_id):
                          final_price=final_price,
                          is_guest=is_guest)
 
-@app.route("/confirm_cancel/<int:order_id>")
+@application.route("/confirm_cancel/<int:order_id>")
 def confirm_cancel(order_id):
     """Confirmation page before cancelling an order"""
     user_type = session.get('user_type')
@@ -1040,7 +1189,7 @@ def confirm_cancel(order_id):
                          cancellation_fee=cancellation_fee,
                          is_guest=is_guest)
 
-@app.route("/cancel_order/<int:order_id>", methods=["POST"])
+@application.route("/cancel_order/<int:order_id>", methods=["POST"])
 def cancel_order(order_id):
     """Cancel an order"""
     user_type = session.get('user_type')
@@ -1088,7 +1237,7 @@ def cancel_order(order_id):
     else:
         return redirect("/my_orders")
 
-@app.route("/manager/dashboard", methods=["GET", "POST"])
+@application.route("/manager/dashboard", methods=["GET", "POST"])
 def manager_dashboard():
     """Manager dashboard - shows all flights with optional filtering"""
     if not require_user_type(['manager']):
@@ -1174,7 +1323,7 @@ def manager_dashboard():
                         airports=airports,
                         filter_values=filter_values)
 
-@app.route("/manager/add_plane", methods=["GET", "POST"])
+@application.route("/manager/add_plane", methods=["GET", "POST"])
 def add_plane():
     """Add a new plane to the fleet - two step process"""
     if not require_user_type(['manager']):
@@ -1222,17 +1371,12 @@ def add_plane():
                                      size=size,
                                      purchase_date=purchase_date)
             
-            # Validate plane_id is numeric
+            # Try to convert plane_id to int if possible, otherwise keep as string
             try:
                 plane_id_int = int(plane_id)
             except ValueError:
-                return render_template("add_plane.html",
-                                     step=1,
-                                     error="Plane ID must be a number",
-                                     plane_id=plane_id,
-                                     manufacturer=manufacturer,
-                                     size=size,
-                                     purchase_date=purchase_date)
+                # Plane ID might not be numeric, keep as string
+                plane_id_int = plane_id
             
             # Check if plane_id already exists
             existing_plane = data.sql_query("SELECT plane_id FROM Planes WHERE plane_id = %s", plane_id_int)
@@ -1423,7 +1567,7 @@ def add_plane():
                          size="",
                          purchase_date="")
 
-@app.route("/manager/reports")
+@application.route("/manager/reports")
 def manager_reports():
     """Manager reports page - shows analytics and charts"""
     if not require_user_type(['manager']):
@@ -1446,7 +1590,7 @@ def manager_reports():
                          total_passengers=reports_data['total_passengers'],
                          charts=charts)
 
-@app.route("/manager/confirm_cancel_flight/<int:flight_id>")
+@application.route("/manager/confirm_cancel_flight/<int:flight_id>")
 def confirm_cancel_flight(flight_id):
     """Confirmation page before cancelling a flight"""
     if not require_user_type(['manager']):
@@ -1469,7 +1613,7 @@ def confirm_cancel_flight(flight_id):
     
     return render_template("confirm_cancel_flight.html", flight=flight_data)
 
-@app.route("/manager/cancel_flight/<int:flight_id>", methods=["POST"])
+@application.route("/manager/cancel_flight/<int:flight_id>", methods=["POST"])
 def cancel_flight(flight_id):
     """Cancel a flight"""
     if not require_user_type(['manager']):
@@ -1489,23 +1633,23 @@ def cancel_flight(flight_id):
     
     return redirect("/manager/dashboard")
 
-@app.route("/manager/add_employee", methods=["GET", "POST"])
+@application.route("/manager/add_employee", methods=["GET", "POST"])
 def add_employee():
     """Add a new employee (Attendant or Pilot)"""
     if not require_user_type(['manager']):
         return redirect("/manager?error=Access denied. Please log in as manager")
     
     if request.method == "POST":
-        employee_role = request.form.get("employee_role")
-        employee_id = request.form.get("employee_id")
-        first_name_he = request.form.get("first_name_he")
-        last_name_he = request.form.get("last_name_he")
-        phone_number = request.form.get("phone_number")
-        city = request.form.get("city")
-        street = request.form.get("street")
-        house_number = request.form.get("house_number")
-        start_work_date = request.form.get("start_work_date")
-        long_flight_certified = request.form.get("long_flight_certified")
+        employee_role = request.form.get("employee_role", "").strip()
+        employee_id = request.form.get("employee_id", "").strip()
+        first_name_he = request.form.get("first_name_he", "").strip()
+        last_name_he = request.form.get("last_name_he", "").strip()
+        phone_number = request.form.get("phone_number", "").strip()
+        city = request.form.get("city", "").strip()
+        street = request.form.get("street", "").strip()
+        house_number = request.form.get("house_number", "").strip()
+        start_work_date = request.form.get("start_work_date", "").strip()
+        long_flight_certified = request.form.get("long_flight_certified", "").strip()
         
         # Validate all fields are provided
         if not all([employee_role, employee_id, first_name_he, last_name_he, phone_number, 
@@ -1521,6 +1665,38 @@ def add_employee():
                                  street=street or "",
                                  house_number=house_number or "",
                                  start_work_date=start_work_date or "",
+                                 long_flight_certified=long_flight_certified or "0")
+        
+        # Validate employee ID
+        is_valid, error = validations.validate_id_number(employee_id)
+        if not is_valid:
+            return render_template("add_employee.html",
+                                 error=error,
+                                 employee_role=employee_role,
+                                 employee_id=employee_id,
+                                 first_name_he=first_name_he,
+                                 last_name_he=last_name_he,
+                                 phone_number=phone_number,
+                                 city=city,
+                                 street=street,
+                                 house_number=house_number,
+                                 start_work_date=start_work_date,
+                                 long_flight_certified=long_flight_certified or "0")
+        
+        # Validate phone number
+        is_valid, error = validations.validate_phone_number(phone_number)
+        if not is_valid:
+            return render_template("add_employee.html",
+                                 error=error,
+                                 employee_role=employee_role,
+                                 employee_id=employee_id,
+                                 first_name_he=first_name_he,
+                                 last_name_he=last_name_he,
+                                 phone_number=phone_number,
+                                 city=city,
+                                 street=street,
+                                 house_number=house_number,
+                                 start_work_date=start_work_date,
                                  long_flight_certified=long_flight_certified or "0")
         
         # Validate employee role
@@ -1624,17 +1800,17 @@ def add_employee():
                          start_work_date="",
                          long_flight_certified="0")
 
-@app.route("/logout")
+@application.route("/logout")
 def logout():
     session.clear()
     return redirect("/")
 
 
-@app.errorhandler(404)
+@application.errorhandler(404)
 def page_not_found(e):
     """Handle 404 errors - Page Not Found"""
     return render_template("page_not_found.html"), 404
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5001)
+    application.run(debug=True, port=5001)
