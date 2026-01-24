@@ -14,17 +14,17 @@ from order import Order
 import reports
 import validations
 
+#set up session directory
 session_dir = os.path.join(os.getcwd(), "flask_session_data")
 try:
     if not os.path.exists(session_dir):
         os.makedirs(session_dir, exist_ok=True)
 except (OSError, PermissionError) as e:
-    # If we can't create the directory, use a fallback location
     session_dir = "/tmp/flask_session_data"
     try:
         os.makedirs(session_dir, exist_ok=True)
     except (OSError, PermissionError):
-        pass  # Will use default Flask session directory
+        pass
 
 application = Flask(__name__)
 # Set secret key for sessions
@@ -37,7 +37,7 @@ application.config.update(
     PERMANENT_SESSION_LIFETIME=timedelta(minutes=10),
     SESSION_REFRESH_EACH_REQUEST=False,
     SESSION_FILE_THRESHOLD=20,
-    SESSION_COOKIE_SECURE=False,  # Set to True only if using HTTPS
+    SESSION_COOKIE_SECURE=False,  # Set False because we are not using HTTPS
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax'
 )
@@ -46,7 +46,7 @@ Session(application)
 
 
 def require_user_type(allowed_types):
-    """בודק אם המשתמש מחובר וסוג המשתמש מורשה"""
+    #Checks if the user is logged in and if the user type is allowed
     user_type = session.get('user_type')
     if not user_type or user_type not in allowed_types:
         return False
@@ -75,7 +75,9 @@ def login():
             if not is_valid:
                 return render_template("login.html", message=error)
             
+            #Get the password from the database
             stored_password = users.get_password(email)
+            #Check if the password is correct
             if stored_password and stored_password == password:
                 session['user_type'] = 'user'
                 session['user_email'] = email
@@ -98,8 +100,6 @@ def sign_up():
         last_name = request.form.get("last_name", "").strip()
         birth_date = request.form.get("birth_date", "").strip()
         passport_number = request.form.get("passport_number", "").strip()
-
-        # קליטת מחרוזת הטלפונים (למשל: "050-123, 052-456")
         phones_string = request.form.get("phone_numbers", "").strip()
 
         # Validate email
@@ -162,6 +162,7 @@ def sign_up():
 
         new_user = User(email, password, first_name, last_name, phones_string, None, birth_date, passport_number)
         try:
+            #Add the user to the database
             add_user(new_user)
             session['user_type'] = 'user'
             session['user_email'] = email
@@ -195,33 +196,31 @@ def guest_page():
             last_name = request.form.get("last_name", "").strip()
             phone = request.form.get("phone", "").strip()
 
-            # שלב א': אם יש רק email -> נבדוק מה הסטטוס שלו
+            #If there is only email, check if the email is valid
             if email and not (first_name and last_name and phone):
                 # Validate email
                 is_valid, error = validations.validate_email(email)
                 if not is_valid:
                     return render_template("guest.html", message=error, email_value=email)
                 
-                print(f"Checking guest status for email: {email}")
-                # 1. בדיקה האם הוא כבר קיים כאורח
+                # 1. Check if the email is already registered as a guest
                 is_existing_guest = guest.is_guest(email)
-                print(f"Is existing guest: {is_existing_guest}")
                 if is_existing_guest:
+                    #If the email is already registered as a guest, log them in and redirect to book_flights
                     session['user_type'] = 'guest'
                     session['user_email'] = email
                     return redirect("/book_flights")
                 
-                # 2. בדיקה האם הוא קיים כמשתמש רשום
+                # 2. Check if the email is already registered as a registered user
                 is_existing_user = users.is_registered_user(email)
-                print(f"Is existing registered user: {is_existing_user}")
                 if is_existing_user:
+                    #If the email is already registered as a registered user, redirect to login page
                     return render_template("login.html", message="You are a registered user. Please log in.")
                 
-                # 3. אם הוא לא אורח ולא רשום -> נטען את הדף עם השדות הפתוחים
-                print(f"New guest, showing details form")
+                # 3. If the email is not registered as a guest or a registered user, show the details form
                 return render_template("guest.html", show_details=True, email_value=email)
 
-            # שלב ב': אם שלחו לנו את כל הפרטים -> ניצור את האורח
+            # If all details are provided, create the guest
             elif email and first_name and last_name and phone:
                 # Validate email
                 is_valid, error = validations.validate_email(email)
@@ -251,9 +250,10 @@ def guest_page():
                 
                 # Create new guest
                 new_guest = Guest(email, first_name, last_name, [phone])
+                #Add the guest to the database
                 success = guest.add_guest(new_guest)
                 if not success:
-                    # This shouldn't happen if we checked above, but just in case
+                    #If the guest is not added to the database, show an error
                     return render_template("guest.html", 
                                          message="An error occurred. Please try again.",
                                          show_details=True, email_value=email,
@@ -286,8 +286,10 @@ def manager():
         if not is_valid:
             return render_template("manager.html", message=error)
         
-        result = data.sql_query("""SELECT password FROM Managers WHERE manager_id = %s""", manager_id)
-        if result and len(result) > 0 and result[0][0] == password:
+        #Get the password from the database
+        stored_manager_password = data.sql_query("""SELECT password FROM Managers WHERE manager_id = %s""", manager_id)
+        #Check if the password is correct
+        if stored_manager_password and stored_manager_password == password:
             session['user_type'] = 'manager'
             session['manager_id'] = manager_id
             return redirect("/manager/dashboard")
@@ -300,32 +302,27 @@ def manager():
 @application.route("/book_flights", methods=["GET", "POST"])
 def book_flights():
     user_type = session.get('user_type')
-    
     # Check if user is a manager
     if user_type == 'manager':
         return redirect("/?error=Managers cannot access the booking system. Please use the manager dashboard.")
     
-    # Check if user is logged in as user or guest
+    # Check if user is logged in as user or guest and if not, redirect to login page
     if not require_user_type(['user', 'guest']):
         return redirect("/?error=Please log in or continue as guest to search and book flights")
     
-    airports = get_all_airports()
-    flight_objects = []
-    search_params = {}
-    show_alternative_flights = False
+    airports = get_all_airports() #gets all the airports from the database
+    flight_objects = [] 
+    search_params = {} #dictionary to store the search parameters
+    show_alternative_flights = False 
     
     if request.method == "POST":
-        origin = request.form.get("origin")
-        destination = request.form.get("destination")
-        date = request.form.get("date")
+        origin = request.form.get("origin") 
+        destination = request.form.get("destination") 
+        date = request.form.get("date") 
         
-        search_params = {
-            'origin': origin,
-            'destination': destination,
-            'date': date
-        }
+        search_params = {'origin': origin,'destination': destination,'date': date}
         
-        # Check if any filters were applied (non-empty values)
+        # Check if any filters were applied
         has_filters = bool((origin and origin.strip()) or 
                            (destination and destination.strip()) or 
                            (date and date.strip()))
@@ -340,10 +337,10 @@ def book_flights():
             show_alternative_flights = True
             flight_objects = Flight.get_active_flights()
     else:
-        # אם זה GET ללא פרמטרים, נציג את כל הטיסות הפעילות
+        # If it is GET without parameters, show all active flights
         flight_objects = Flight.get_active_flights()
     
-    # המרת Flight objects לפורמט tuple עבור ה-template
+    # Convert Flight objects to tuple format for the template
     flights_with_images = []
     for flight in flight_objects:
         flight_tuple = (
@@ -365,7 +362,7 @@ def book_flights():
         )
         flights_with_images.append(flight_tuple)
     
-    # Check if filters are active (check for non-empty values)
+    # Check if filters are active to show the active filters in the template
     origin_val = search_params.get('origin', '') or ''
     destination_val = search_params.get('destination', '') or ''
     date_val = search_params.get('date', '') or ''
@@ -392,7 +389,7 @@ def select_seats(flight_id):
     if not require_user_type(['user', 'guest']):
         return redirect("/?error=Please log in or continue as guest to select seats")
     
-    # Get flight object using the Flight class
+    # Get flight object using the Flight from flights.py
     flight = Flight.get_flight_by_id(flight_id)
     if not flight:
         return redirect("/book_flights")
@@ -480,7 +477,7 @@ def complete_booking(flight_id):
     if request.method == "POST":
         # Handle form submission
         if user_type == 'guest':
-            # For guests: validate form data only (no DB check, no auto-fill)
+            # For guests: validate form data only
             # Create temporary guest object just for validation
             temp_guest = guest.Guest(user_email, '', '', [])
             is_valid, error_msg, validated_data = temp_guest.validate_booking_data(request.form)
@@ -516,7 +513,7 @@ def complete_booking(flight_id):
     
     # GET request - show form
     if user_type == 'guest':
-        # For guests: empty form (no DB data, no auto-fill)
+        # For guests: empty form
         user_data = {
             'first_name': '',
             'last_name': '',
@@ -525,7 +522,7 @@ def complete_booking(flight_id):
             'phone_numbers': ''
         }
     else:  # registered user
-        # Get user data from database (user is already logged in)
+        # Get user data from database automatically filled
         user = users.read_user(user_email)
         user_data = user.get_booking_form_data()
     
@@ -556,17 +553,15 @@ def confirm_booking(flight_id):
     user_email = session.get('user_email')
     
     if request.method == "POST":
-        # Final confirmation - process the order using Duck Typing
+        # Final confirmation - process the order
         if user_type == 'guest':
             if not order.user_data:
                 return redirect(f"/complete_booking/{flight_id}")
             
-            # For guests: create order without checking DB (guest data not saved to DB)
-            # Create temporary guest object just for validation
-            temp_guest = guest.Guest(user_email, '', '', [])
+            order.email = user_email
             
-            # Use add_order method - creates order in DB (guest personal data NOT saved to DB)
-            order_id, error = temp_guest.add_order(order, order.user_data)
+            # Create order in DB (guest personal data NOT saved to DB)
+            order_id, error = order.process_booking(order.flight, order.selected_seats)
         else:  # registered user
             # Get user object (user is already logged in)
             user = users.read_user(user_email)
