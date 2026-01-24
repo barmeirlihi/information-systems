@@ -77,6 +77,26 @@
             box-shadow: 0 10px 15px -3px rgba(231, 111, 81, 0.3);
         }
         
+        .clear-filter-btn {
+            padding: 1rem 1.5rem;
+            background: #64748b;
+            color: white;
+            border: none;
+            border-radius: 0.75rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+            display: inline-block;
+        }
+        
+        .clear-filter-btn:hover {
+            background: #475569;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
         .flights-container {
             max-width: 1400px;
             margin: 0 auto;
@@ -260,6 +280,18 @@
             font-size: 1.1rem;
         }
         
+        .alternative-flights-message {
+            background: #fef3c7;
+            border: 2px solid #fbbf24;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+            color: #92400e;
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+        
         @media (max-width: 768px) {
             .flights-grid {
                 grid-template-columns: 1fr;
@@ -332,13 +364,24 @@
                     </div>
                 </div>
                 
-                <button type="submit" class="search-btn">Search Flights</button>
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                    <button type="submit" class="search-btn" style="flex: 1;">Search Flights</button>
+                    {% if has_active_filters %}
+                    <a href="/book_flights" class="clear-filter-btn" style="flex: 0 0 auto;">Clear Filters</a>
+                    {% endif %}
+                </div>
             </form>
         </div>
     </div>
 
     <div class="flights-container">
         <h2 class="flights-title">Available Flights</h2>
+        
+        {% if show_alternative_flights %}
+        <div class="alternative-flights-message">
+            We don't have the flight you searched for, but here are some other flights that might interest you...
+        </div>
+        {% endif %}
         
         {% if flights %}
         <div class="flights-grid">
