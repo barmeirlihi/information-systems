@@ -6,9 +6,6 @@ misc.xml
 vcs.xml
 flytau_database.sql
 flytau_database_utf8.sql
-.DS_Store
-flask_session_data
-# Elastic Beanstalk Files
-.elasticbeanstalk/*
-!.elasticbeanstalk/*.cfg.yml
-!.elasticbeanstalk/*.global.yml
+populate_database.sql
+populate_database.py
+requirements.txt.old
