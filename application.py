@@ -240,12 +240,16 @@ def book_flights():
             'date': date
         }
         
+        # Check if any filters were applied
+        has_filters = bool(origin or destination or date)
+        
+        # Search with filters
         flight_objects = Flight.get_active_flights(origin=origin if origin else None, 
                                                     destination=destination if destination else None,
                                                     flight_date=date if date else None)
         
         # If no flights found with filters, show alternative flights
-        if not flight_objects and (origin or destination or date):
+        if not flight_objects and has_filters:
             show_alternative_flights = True
             flight_objects = Flight.get_active_flights()
     else:
